@@ -296,8 +296,8 @@ def _post_submission(server, keypair, ingestion_filename, creation_post_data, su
 DEFAULT_INGESTION_TYPE = 'metadata_bundle'
 
 
-def submit_any_ingestion(ingestion_filename, ingestion_type, institution, project, submission_type, server, env, validate_only,
-                         upload_folder=None):
+def submit_any_ingestion(ingestion_filename, ingestion_type, institution, project, submission_type, server, env,
+                         validate_only, upload_folder=None):
     """
     Does the core action of submitting a metadata bundle.
 
@@ -305,6 +305,7 @@ def submit_any_ingestion(ingestion_filename, ingestion_type, institution, projec
     :param ingestion_type: the type of ingestion to be performed (an ingestion_type in the IngestionSubmission schema)
     :param institution: the @id of the institution for which the submission is being done
     :param project: the @id of the project for which the submission is being done
+    :param submission_type: the type of submission for metadata bundles (accessioning or pedigree)
     :param server: the server to upload to
     :param env: the beanstalk environment to upload to
     :param validate_only: whether to do stop after validation instead of proceeding to post metadata
