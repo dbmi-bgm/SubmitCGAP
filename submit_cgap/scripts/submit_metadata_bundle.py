@@ -26,8 +26,8 @@ def main(simulated_args_for_testing=None):
     args = parser.parse_args(args=simulated_args_for_testing)
 
     return submit_any_ingestion(ingestion_filename=args.bundle_filename, ingestion_type=args.ingestion_type,
-                                institution=args.institution, project=args.project, submission_type=args.submission_type,
-                                server=args.server, env=args.env,
+                                institution=args.institution, project=args.project,
+                                submission_type=args.submission_type, server=args.server, env=args.env,
                                 validate_only=args.validate_only, upload_folder=args.upload_folder,
                                 )
 
