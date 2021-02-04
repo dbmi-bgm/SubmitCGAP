@@ -45,6 +45,7 @@ def test_submit_metadata_bundle_script(keyfile):
         'server': None,
         'institution': None,
         'project': None,
+        'submission_type': None,
         'validate_only': False,
         'upload_folder': None,
     })
@@ -55,6 +56,7 @@ def test_submit_metadata_bundle_script(keyfile):
         'server': "some-server",
         'institution': "some-institution",
         'project': "some-project",
+        'submission_type': None,
         'validate_only': True,
         'upload_folder': None,
     }
@@ -76,6 +78,7 @@ def test_submit_metadata_bundle_script(keyfile):
         'server': "some-server",
         'institution': "some-institution",
         'project': "some-project",
+        'submission_type': None,
         'validate_only': False,
         'upload_folder': 'a-folder',
     }
@@ -104,6 +107,7 @@ def test_submit_metadata_bundle_script(keyfile):
         'server': "some-server",
         'institution': "some-institution",
         'project': "some-project",
+        'submission_type': None,
         'validate_only': True,
         'upload_folder': 'a-folder',
     }
