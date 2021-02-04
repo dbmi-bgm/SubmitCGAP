@@ -296,7 +296,7 @@ def _post_submission(server, keypair, ingestion_filename, creation_post_data, su
 DEFAULT_INGESTION_TYPE = 'metadata_bundle'
 
 
-def submit_any_ingestion(ingestion_filename, ingestion_type, institution, project, server, env, validate_only,
+def submit_any_ingestion(ingestion_filename, ingestion_type, institution, project, submission_type, server, env, validate_only,
                          upload_folder=None):
     """
     Does the core action of submitting a metadata bundle.
@@ -349,6 +349,7 @@ def submit_any_ingestion(ingestion_filename, ingestion_type, institution, projec
                                     },
                                     submission_post_data={
                                         'validate_only': validate_only,
+                                        'submission_type': submission_type
                                     })
 
         try:

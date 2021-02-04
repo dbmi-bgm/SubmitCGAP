@@ -16,6 +16,7 @@ def main(simulated_args_for_testing=None):
     parser.add_argument('bundle_filename', help='a local Excel filename that is the data bundle')
     parser.add_argument('--institution', '-i', help='institution identifier', default=None)
     parser.add_argument('--project', '-p', help='project identifier', default=None)
+    parser.add_argument('--submission_type', '-m', help="type of submission (accessioning or pedigree)", default=None)
     parser.add_argument('--server', '-s', help="an http or https address of the server to use", default=None)
     parser.add_argument('--env', '-e', help="a CGAP beanstalk environment name for the server to use", default=None)
     parser.add_argument('--validate-only', '-v', action="store_true",
@@ -25,7 +26,7 @@ def main(simulated_args_for_testing=None):
     args = parser.parse_args(args=simulated_args_for_testing)
 
     return submit_any_ingestion(ingestion_filename=args.bundle_filename, ingestion_type=args.ingestion_type,
-                                institution=args.institution, project=args.project,
+                                institution=args.institution, project=args.project, submission_type=args.submission_type,
                                 server=args.server, env=args.env,
                                 validate_only=args.validate_only, upload_folder=args.upload_folder,
                                 )
