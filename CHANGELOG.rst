@@ -7,6 +7,14 @@ Change Log
 ----------
 
 
+0.8.0
+=====
+
+**PR 11: SubmitCGAP --submission_type argument**
+
+* Add ``--submission_type`` argument to ``submit-metadata-bundle``. Allows
+  submission of accessioning or pedigree metadata.
+
 0.7.3
 =====
 
