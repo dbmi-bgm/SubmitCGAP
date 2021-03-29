@@ -57,7 +57,6 @@ def main(simulated_args_for_testing=None):
             server=args.server,
             env=args.env,
             validate_only=args.validate_only,
-            upload_folder=args.upload_folder,
     )
 
 
