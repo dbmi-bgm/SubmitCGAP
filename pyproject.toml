@@ -83,6 +83,7 @@ resume-uploads = "submit_cgap.scripts.resume_uploads:main"
 show-upload-info = "submit_cgap.scripts.show_upload_info:main"
 submit-metadata-bundle = "submit_cgap.scripts.submit_metadata_bundle:main"
 upload-item-data = "submit_cgap.scripts.upload_item_data:main"
+submit-genelist = "submit_cgap.scripts.submit_genelist:main"
 
 [tool.coverage.report]
 
