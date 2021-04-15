@@ -34,11 +34,10 @@ About Metadata Bundles
 "Metadata bundles" are Excel files (.xlsx) accompanied by other files 
 (such as ``.fastq.gz`` files). 
 
-**Note**:
-   The format of the Excel files that are used as
-   "metadata bundles" is not yet documented.
-   For now you should begin by obtaining a template file from
-   your contact on the CGAP Team and then customize that as appropriate.
+Note: The format of the Excel files that are used as
+"metadata bundles" is not yet documented.
+For now you should begin by obtaining a template file from
+your contact on the CGAP Team and then customize that as appropriate.
 
 Installation
 ============
@@ -77,7 +76,7 @@ you should have access to the ``submit-metadata-bundle`` and the ``submit-geneli
 commands.
 
 Metadata Bundles
-----------------
+^^^^^^^^^^^^^^^^
 
 For help about arguments, do::
 
@@ -116,7 +115,7 @@ or::
 where the ``<item-uuid>`` is the uuid for the individual item, not the metadata bundle.
 
 Gene Lists
-----------
+^^^^^^^^^^
 
 The ``submit-genelist`` command shares similar features with ``submit-metadata-bundle``.
 For help about arguments, do::
