@@ -10,6 +10,7 @@ from ..scripts import submit_genelist as submit_genelist_module
 
 INGESTION_TYPE = "genelist"
 
+
 @pytest.mark.parametrize("keyfile", [None, "foo.bar"])
 def test_submit_metadata_bundle_script(keyfile):
 
