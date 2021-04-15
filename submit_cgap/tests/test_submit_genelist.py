@@ -7,6 +7,7 @@ from ..base import KeyManager
 from ..scripts.submit_genelist import main as submit_genelist_main
 from ..scripts import submit_genelist as submit_genelist_module
 
+
 INGESTION_TYPE = "genelist"
 
 @pytest.mark.parametrize("keyfile", [None, "foo.bar"])
