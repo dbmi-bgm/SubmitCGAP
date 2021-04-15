@@ -9,7 +9,7 @@ Change Log
 0.8.0
 =====
 
-**PR 11: SubmitCGAP submit-genelist**
+**PR 12: SubmitCGAP submit-genelist**
 
 * Add ``submit-genelist`` command for uploading gene lists
 
