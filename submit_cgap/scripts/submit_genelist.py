@@ -47,6 +47,7 @@ def main(simulated_args_for_testing=None):
 
     return submit_any_ingestion(
             ingestion_filename=args.genelist_filename,
+            ingestion_type='genelist',
             institution=args.institution,
             project=args.project,
             server=args.server,
