@@ -43,15 +43,10 @@ def main(simulated_args_for_testing=None):
             help="whether to stop after validating without submitting",
             default=False
     )
-    parser.add_argument(
-            '--ingestion_type', '-t', help="the ingestion type",
-            default='genelist'
-    )
     args = parser.parse_args(args=simulated_args_for_testing)
 
     return submit_any_ingestion(
             ingestion_filename=args.genelist_filename,
-            ingestion_type=args.ingestion_type,
             institution=args.institution,
             project=args.project,
             server=args.server,
