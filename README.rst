@@ -24,17 +24,17 @@ Description
 This is a tool for uploading certain kinds of files to CGAP.
 
 Current support is for "metadata bundles" and "gene lists".
-"Metadata bundles" are Excel files (.xlsx) accompanied by other files 
+"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files 
 (such as ``.fastq.gz`` files). 
-"Gene lists" are either Excel files (.xlsx) or plain text (.txt) files.
+"Gene lists" are either Excel files (``.xlsx``) or plain text (``.txt``) files.
 
 
 About Metadata Bundles
 ======================
-"Metadata bundles" are Excel files (.xlsx) accompanied by other files 
+"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files 
 (such as ``.fastq.gz`` files). 
 
-**Note**
+**Note:**
 The format of the Excel files that are used as
 "metadata bundles" is not yet documented.
 For now you should begin by obtaining a template file from
