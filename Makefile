@@ -26,6 +26,12 @@ publish:
 publish-for-ga:
 	scripts/publish --noconfirm
 
+build-docker-local:
+	@docker build . -t submitcgap:local || echo "Docker build failed! There is likely error output above."
+
+exec-docker-local:
+	@docker run -it --mount type=bind,source=$(shell pwd)/submission_files/,target=/home/submitter/SubmitCGAP/submission_files submitcgap:local || echo "Container exited."
+
 help:
 	@make info
 
@@ -38,3 +44,5 @@ info:
 	   $(info - Use 'make retest' to run failing tests from the previous test run.)
 	   $(info - Use 'make test' to run tests with the normal options we use for CI/CD like GA.)
 	   $(info - Use 'make update' to update dependencies (and the lock file))
+	   $(info - Use 'make build-docker-local' to build the Docker image)
+	   $(info - Use 'make exec-docker-local' to open a bash session in SubmitCGAP Docker image)

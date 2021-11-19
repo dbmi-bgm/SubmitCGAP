@@ -21,11 +21,11 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN chown -R $APP_USER:$APP_USER /opt/venv && \
-    mkdir -p /home/$APP_USER/SubmitCGAP
+    mkdir -p /home/$APP_USER/SubmitCGAP/submission_files
 
 WORKDIR /home/$APP_USER/SubmitCGAP
 
-# Upgrade pip, install in layer
+# Upgrade pip, poetry
 RUN pip install --upgrade pip && \
     pip install poetry==$POETRY_VERSION
 
@@ -42,5 +42,6 @@ RUN poetry install
 RUN chown -R $APP_USER:$APP_USER /home/$APP_USER/SubmitCGAP
 
 USER $APP_USER
+VOLUME ["/home/$APP_USER/SubmitCGAP/submission_files/"]
 
 ENTRYPOINT ["/bin/bash"]

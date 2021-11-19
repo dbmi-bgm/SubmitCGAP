@@ -24,15 +24,15 @@ Description
 This is a tool for uploading certain kinds of files to CGAP.
 
 Current support is for "metadata bundles" and "gene lists".
-"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files 
-(such as ``.fastq.gz`` files). 
+"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files
+(such as ``.fastq.gz`` files).
 "Gene lists" are either Excel files (``.xlsx``) or plain text (``.txt``) files.
 
 
 About Metadata Bundles
 ======================
-"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files 
-(such as ``.fastq.gz`` files). 
+"Metadata bundles" are Excel files (``.xlsx``) accompanied by other files
+(such as ``.fastq.gz`` files).
 
 **Note:**
 The format of the Excel files that are used as
@@ -43,7 +43,10 @@ your contact on the CGAP Team and then customize that as appropriate.
 Installation
 ============
 
-Installing this system involves these steps:
+For detailed information about the following installation steps with Docker setup, see
+`Installing SubmitCGAP <INSTALLATION.rst>`__.
+
+Installing SubmitCGAP involves these steps:
 
 1. Create, install, and activate a virtual environment.
 2. Install poetry
@@ -53,9 +56,6 @@ Installing this system involves these steps:
 4. If you are an end user, do "``pip install submit_cgap``".
    Otherwise, do "``make build``".
 5. Set up a ``~/.cgap-keys.json`` credentials file.
-
-For detailed information about these installation steps, see
-`Installing SubmitCGAP <INSTALLATION.rst>`__.
 
 
 Testing
@@ -128,7 +128,7 @@ Normally, for the three commands above, you are asked to verify the files you wo
 to upload. If you would like to skip these prompts so the commands can be run by a
 scheduler or in the background, you can pass the ``--no_query`` or ``-nq`` argument, such
 as::
-    
+
     submit-metadata-bundle mymetadata.xlsx --no_query
 
 Gene Lists

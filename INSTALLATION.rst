@@ -2,6 +2,46 @@
 Installing SubmitCGAP
 =====================
 
+SubmitCGAP with Docker
+======================
+
+Previously, using SubmitCGAP required doing a manual installation on the machine
+of the submitter. Now, we provide a Docker image for more convenient ease of use,
+eliminating the need for setting up a lot of system level dependencies that are
+beyond the scope of need for this application.
+
+The only system level requirement is ``Docker`` or ``podman``. Note that
+podman_ is docker compatible via command line. Note that you may need to install ``make``
+as well if your system does not come with it.
+
+.. _podman: https://podman.io/whatis.html
+
+Step 1: Installation
+====================
+
+Option 1: Build the image locally
+---------------------------------
+
+Use ``make build-docker-local`` to build the SubmitCGAP Docker image. Once complete,
+``make exec-docker-local`` will open a bash session into a container that is pre-configured
+to run SubmitCGAP.
+
+Option 2: Pull Image from Dockerhub
+---------------------------------
+
+TODO: put a version of the image on Dockerhub once this is released. Provide make targets for pulling
+and exec'ing into it.
+
+Step 2: Add submission files to ``submission_files/`` directory
+===============================================================
+
+
+==================================
+Previous Installation Instructions
+==================================
+
+Manual installation instructions (previously the only instructions) are below.
+Note that the Dockerfile in effect provides precise installation instructions on a Debian-based system.
 
 System Requirements
 ===================
