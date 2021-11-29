@@ -140,3 +140,4 @@ docs/build
 
 # Submission files
 submission_files/*
+.cgap-keys.json

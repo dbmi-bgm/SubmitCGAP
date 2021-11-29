@@ -32,9 +32,17 @@ Option 2: Pull Image from Dockerhub
 TODO: put a version of the image on Dockerhub once this is released. Provide make targets for pulling
 and exec'ing into it.
 
-Step 2: Add submission files to ``submission_files/`` directory
-===============================================================
+Step 2: Add submission files to submission_files/ directory
+===========================================================
 
+Create a directory in the repository top level called ``submission_files`` and copy all submission
+files into this directory. This directory will be mounted to the SubmitCGAP container so you can
+run commands that interact with the submission files within the container.
+
+Step 3: Configure Credentials
+=============================
+
+TODO: provide this.
 
 ==================================
 Previous Installation Instructions
