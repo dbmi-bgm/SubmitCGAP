@@ -7,6 +7,11 @@ Change Log
 ----------
 
 
+1.2.0
+=====
+
+* Better error diagnostics for S3FS-mounted files that are glaciated if CGAP_S3FS_MOUNT_DIR is set.
+
 1.1.1
 =====
 

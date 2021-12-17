@@ -6,6 +6,7 @@ import re
 
 from dcicutils.qa_utils import (
     override_environ, ignored, ControlledTime, MockFileSystem, local_attrs, raises_regexp, printed_output,
+    MockBoto3, MockBotoS3Client, MockKeysNotImplemented
 )
 from dcicutils.s3_utils import HealthPageKey
 from unittest import mock
@@ -20,6 +21,7 @@ from ..submission import (
     resolve_server, resume_uploads, script_catch_errors, show_section, submit_any_ingestion,
     upload_file_to_uuid, upload_item_data, PROGRESS_CHECK_INTERVAL,
     get_s3_encrypt_key_id, get_s3_encrypt_key_id_from_health_page,
+    check_s3fs_mapped_filename, maybe_show_s3fs_warnings,
 )
 from ..utils import FakeResponse
 
@@ -2036,3 +2038,132 @@ def test_submit_any_ingestion_new_protocol():
             # After 1 second to recheck the time...
             '12:02:10 Timed out after 8 tries.',
         ]
+
+
+def test_check_s3fs_mapped_filename():
+
+    raw_mapping_dir = "~/my-uploads"
+    expanded_mapping_dir = os.path.expanduser(raw_mapping_dir)
+    my_bucket = 'some-bucket-of-mine'
+    my_key = "12345/bar.baz"
+    expected = (my_bucket, my_key)
+
+    for mapping_dir in [raw_mapping_dir, expanded_mapping_dir]:
+        for suffix in ["", "/"]:
+            cgap_s3fs_mapping = f'{my_bucket}:{mapping_dir}{suffix}'
+            with override_environ(CGAP_S3FS_MAPPING=cgap_s3fs_mapping):
+                sample_filename = f'{mapping_dir}/{my_key}'
+                print(f"\nCGAP_S3FS_MAPPING={cgap_s3fs_mapping} sample_filename={sample_filename}")
+                parsed = check_s3fs_mapped_filename(sample_filename)
+                print(f"parsed={parsed}")
+                assert parsed == expected
+
+                with printed_output() as printed:
+                    sample_unmapped_filename = 'something.else'
+                    parsed = check_s3fs_mapped_filename(sample_unmapped_filename)
+                    assert not parsed
+                    assert printed.lines == []
+
+                with override_environ(CGAP_S3FS_MAPPING=""):
+                    with printed_output() as printed:
+                        parsed = check_s3fs_mapped_filename(sample_filename)
+                        assert not parsed
+                        assert printed.lines == []
+
+                with override_environ(CGAP_S3FS_MAPPING=None):
+                    with printed_output() as printed:
+                        parsed = check_s3fs_mapped_filename(sample_filename)
+                        assert not parsed
+                        assert printed.lines == []
+
+                bad_cgap_s3fs_mapping = "something with no colon"
+                with override_environ(CGAP_S3FS_MAPPING=bad_cgap_s3fs_mapping):
+                    with printed_output() as printed:
+                        parsed = check_s3fs_mapped_filename(sample_filename)
+                        assert not parsed
+                        assert printed.lines == [f"CGAP_F3FS_MAPPING is in improper form:"
+                                                 f" {repr(bad_cgap_s3fs_mapping)}"]
+
+
+class MockBotoS3ClientWithStorageClass(MockBotoS3Client):
+
+    def head_object(self, Bucket, Key, **kwargs):  # noQA - AWS argument naming style
+        if kwargs != self.other_required_arguments:
+            raise MockKeysNotImplemented("get_object", kwargs.keys())
+
+        pseudo_filename = os.path.join(Bucket, Key)
+
+        if self.s3_files.exists(pseudo_filename):
+            content = self.s3_files.files[pseudo_filename]
+            return {
+                'Bucket': Bucket,
+                'Key': Key,
+                'ETag': self._content_etag(content),
+                'ContentLength': len(content),
+                'StorageClass': self.storage_class,
+                # Numerous others, but this is enough to make the dictionary non-empty and to satisfy some of our tools
+            }
+        else:
+            # I would need to research what specific error is needed here and hwen,
+            # since it might be a 404 (not found) or a 403 (permissions), depending on various details.
+            # For now, just fail in any way since maybe our code doesn't care.
+            raise Exception("Mock File Not Found")
+
+
+def test_maybe_show_s3fs_warnings():
+
+    class MockBotoStandardS3Client(MockBotoS3ClientWithStorageClass):
+        DEFAULT_STORAGE_CLASS = 'STANDARD'
+    mock_boto3_with_standard_s3 = MockBoto3(s3=MockBotoStandardS3Client)
+
+    class MockBotoDeepArchiveS3Client(MockBotoS3ClientWithStorageClass):
+        DEFAULT_STORAGE_CLASS = 'DEEP_ARCHIVE'
+    mock_boto3_with_deep_archive_s3 = MockBoto3(s3=MockBotoDeepArchiveS3Client)
+
+    with mock.patch.object(submission_module, "check_s3fs_mapped_filename") as mock_check:
+
+        mock_boto3 = mock_boto3_with_standard_s3
+        with mock.patch.object(submission_module, "boto3", mock_boto3):
+
+            mock_check.return_value = None
+
+            with printed_output() as printed:
+                maybe_show_s3fs_warnings("some.file")
+                assert printed.lines == []
+
+            mock_check.return_value = ("some-bucket", "some-key")
+
+            with printed_output() as printed:
+                maybe_show_s3fs_warnings("some.file")
+                assert printed.lines == [
+                    "An error occurred while trying to ask S3 about Bucket='some-bucket',"
+                    " Key='some-key': Mock File Not Found"
+                ]
+
+            some_bucket = 'some-bucket'
+            some_key = 'some-key'
+
+            mock_check.return_value = (some_bucket, some_key)
+
+            mock_boto3.client('s3').upload_fileobj(
+                Fileobj=io.BytesIO(b'{"some": "object"}'),
+                Bucket=some_bucket, Key=some_key)
+
+            with printed_output() as printed:
+                maybe_show_s3fs_warnings("some.file")
+                assert printed.lines == []  # some_file is allocated as StorageClass=STANDARD so no warning to offer.
+
+        mock_boto3 = mock_boto3_with_deep_archive_s3
+        with mock.patch.object(submission_module, "boto3", mock_boto3):
+
+            mock_check.return_value = (some_bucket, some_key)
+
+            mock_boto3.client('s3').upload_fileobj(
+                Fileobj=io.BytesIO(b'{"some": "object"}'),
+                Bucket=some_bucket, Key=some_key)
+
+            with printed_output() as printed:
+                maybe_show_s3fs_warnings("some.file")
+                assert printed.lines == [
+                    "The file some.file is mapped via S3FS to DEEP_ARCHIVE storage."
+                ]

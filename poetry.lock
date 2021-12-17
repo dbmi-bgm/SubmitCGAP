@@ -490,7 +490,7 @@ yaml = ["PyYAML (>=3.10)"]
 
 [[package]]
 name = "dcicutils"
-version = "3.4.0"
+version = "3.4.2"
 description = "Utility package for interacting with the 4DN Data Portal and other 4DN resources"
 category = "main"
 optional = false
@@ -1166,7 +1166,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6.1,<3.8"
-content-hash = "35910676b5e0e91aa168b2bf6c2fec63396bf9b524387d852df77605c4c26721"
+content-hash = "90891cdf7a381d7cddfe82c1f2679c173d375043c830a2277837f789ecbdde89"
 
 [metadata.files]
 alabaster = [
@@ -1288,8 +1288,8 @@ coveralls = [
     {file = "coveralls-3.2.0.tar.gz", hash = "sha256:15a987d9df877fff44cd81948c5806ffb6eafb757b3443f737888358e96156ee"},
 ]
 dcicutils = [
-    {file = "dcicutils-3.4.0-py3-none-any.whl", hash = "sha256:a7a8dcc8a50b8f4a599ad7b93027383faabec9af077c8a02e52d348a40f66ae3"},
-    {file = "dcicutils-3.4.0.tar.gz", hash = "sha256:07e719fdbb11f72227a131b8d650c048ecd786bccd7348b09c0e55f65bbccc54"},
+    {file = "dcicutils-3.4.2-py3-none-any.whl", hash = "sha256:78519432cd5a440cc7a87ad7c6d4726e25733b986eba77691da527920cc9138b"},
+    {file = "dcicutils-3.4.2.tar.gz", hash = "sha256:25a7e8d58f45a44d8ca08f5a1dbd20baa2289f8c4ac7ee58e4602c6fd19b69b8"},
 ]
 docker = [
     {file = "docker-4.4.4-py2.py3-none-any.whl", hash = "sha256:f3607d5695be025fa405a12aca2e5df702a57db63790c73b927eb6a94aac60af"},

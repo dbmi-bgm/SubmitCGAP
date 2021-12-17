@@ -1,3 +1,4 @@
+import boto3
 import contextlib
 import glob
 import io
@@ -648,7 +649,63 @@ def do_uploads(upload_spec_list, auth, folder=None, no_query=False, subfolders=F
             upload_file_to_uuid(filename=filename, uuid=uuid, auth=auth)
             show("Upload of %s to item %s was successful." % (filename, uuid))
         except Exception as e:
+            maybe_show_s3fs_warnings(filename)
             show("%s: %s" % (e.__class__.__name__, e))
+
+
+# Refs:
+#  * https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
+#  * https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html
+#
+# We single out 'available' storage classes as the ones someone would expect to be readily
+# available in short time and not subject to catastrophe, so that an I/O error probably
+# isn't related to the storage class. In practice that's the two standard storage classes
+# plus the intelligent tiering.  Most of the others have a latency issue or are otherwise
+# fragile. In practice, we just want to not overly warn about normal kinds of storage.
+
+S3_AVAILABLE_STORAGE_CLASSES = [
+    'STANDARD', 'STANDARD_IA', 'INTELLIGENT_TIERING'
+]
+
+CGAP_S3FS_MAPPING_PATTERN = re.compile(r"^([^:]+):(.+)$")
+
+
+def check_s3fs_mapped_filename(filename):
+    s3fs_mapping = os.environ.get('CGAP_S3FS_MAPPING')
+    if not s3fs_mapping:
+        # We're not using S3FS mapping, so we have no warnings to show.
+        return
+    m = CGAP_S3FS_MAPPING_PATTERN.match(s3fs_mapping)
+    if not m:
+        # We were trying to use S3FS mapping, but the mapping info is in bad form.
+        show(f"CGAP_F3FS_MAPPING is in improper form: {s3fs_mapping!r}")
+        return
+    mapped_bucket, mapped_dir = m.groups()
+    mapped_dir = mapped_dir.rstrip('/')
+    pattern = f"^(?:{re.escape(mapped_dir)}|{re.escape(os.path.expanduser(mapped_dir))})/(.*)$"
+    m = re.match(pattern, filename)
+    if not m:
+        # Some files might not match our mapping.
+        return
+    mapped_key = m.group(1)
+    return mapped_bucket, mapped_key
+
+
+def maybe_show_s3fs_warnings(filename):
+    mapped_bucket_and_key = check_s3fs_mapped_filename(filename)
+    if not mapped_bucket_and_key:
+        return False
+    # If we get to here, we have a plausibly mapped filename that we might want to warn about.
+    mapped_bucket, mapped_key = mapped_bucket_and_key
+    try:
+        s3 = boto3.client('s3')
+        metadata = s3.head_object(Bucket=mapped_bucket, Key=mapped_key)
+        storage_class = metadata['StorageClass']
+        if not storage_class in S3_AVAILABLE_STORAGE_CLASSES:
+            show(f"The file {filename} is mapped via S3FS to {storage_class} storage.")
+    except Exception as e:
+        # Add some context for an error message we're about to see on the console.
+        show(f"An error occurred while trying to ask S3 about Bucket={mapped_bucket!r}, Key={mapped_key!r}: {e}")
 
 
 def upload_item_data(item_filename, uuid, server, env, no_query=False):
