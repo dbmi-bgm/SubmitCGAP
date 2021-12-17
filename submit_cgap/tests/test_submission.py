@@ -2085,38 +2085,13 @@ def test_check_s3fs_mapped_filename():
                                                  f" {repr(bad_cgap_s3fs_mapping)}"]
 
 
-class MockBotoS3ClientWithStorageClass(MockBotoS3Client):
-
-    def head_object(self, Bucket, Key, **kwargs):  # noQA - AWS argument naming style
-        if kwargs != self.other_required_arguments:
-            raise MockKeysNotImplemented("get_object", kwargs.keys())
-
-        pseudo_filename = os.path.join(Bucket, Key)
-
-        if self.s3_files.exists(pseudo_filename):
-            content = self.s3_files.files[pseudo_filename]
-            return {
-                'Bucket': Bucket,
-                'Key': Key,
-                'ETag': self._content_etag(content),
-                'ContentLength': len(content),
-                'StorageClass': self.storage_class,
-                # Numerous others, but this is enough to make the dictionary non-empty and to satisfy some of our tools
-            }
-        else:
-            # I would need to research what specific error is needed here and hwen,
-            # since it might be a 404 (not found) or a 403 (permissions), depending on various details.
-            # For now, just fail in any way since maybe our code doesn't care.
-            raise Exception("Mock File Not Found")
-
-
 def test_maybe_show_s3fs_warnings():
 
-    class MockBotoStandardS3Client(MockBotoS3ClientWithStorageClass):
+    class MockBotoStandardS3Client(MockBotoS3Client):
         DEFAULT_STORAGE_CLASS = 'STANDARD'
     mock_boto3_with_standard_s3 = MockBoto3(s3=MockBotoStandardS3Client)
 
-    class MockBotoDeepArchiveS3Client(MockBotoS3ClientWithStorageClass):
+    class MockBotoDeepArchiveS3Client(MockBotoS3Client):
         DEFAULT_STORAGE_CLASS = 'DEEP_ARCHIVE'
     mock_boto3_with_deep_archive_s3 = MockBoto3(s3=MockBotoDeepArchiveS3Client)
 
