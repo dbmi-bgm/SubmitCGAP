@@ -22,6 +22,7 @@ from ..submission import (
     upload_file_to_uuid, upload_item_data, PROGRESS_CHECK_INTERVAL,
     get_s3_encrypt_key_id, get_s3_encrypt_key_id_from_health_page,
     check_s3fs_mapped_filename, maybe_show_s3fs_warnings, ALL_S3_STORAGE_CLASSES, AVAILABLE_S3_STORAGE_CLASSES,
+    bash_enumeration,
 )
 from ..utils import FakeResponse
 
@@ -2148,3 +2149,11 @@ def test_maybe_show_s3fs_warnings():
                         assert printed.lines == [
                             f"The file {some_file} is mapped via S3FS to {storage_class} storage."
                         ]
+
+def test_bash_enumeration():
+
+    assert bash_enumeration('foo bar baz') == ['foo', 'bar', 'baz']
+    assert bash_enumeration('foo\nbar\nbaz') == ['foo', 'bar', 'baz']
+    assert bash_enumeration('foo, bar,baz') == ['foo', 'bar', 'baz']
+    assert bash_enumeration('foo,\n  bar   ,,,baz, \n') == ['foo', 'bar', 'baz']
+

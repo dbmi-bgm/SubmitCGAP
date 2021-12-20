@@ -675,25 +675,36 @@ AVAILABLE_S3_STORAGE_CLASSES = [
 CGAP_S3FS_MAPPING_PATTERN = re.compile(r"^([^:]+):(.+)$")
 
 
-def check_s3fs_mapped_filename(filename):
-    s3fs_mapping = os.environ.get('CGAP_S3FS_MAPPING')
-    if not s3fs_mapping:
+def check_s3fs_mapped_filename(filename, s3=None):
+    upload_buckets = os.environ.get("UPLOAD_BUCKETS")
+    upload_dir = os.environ.get("UPLOAD_DIR")
+    if not upload_buckets or not upload_dir:
         # We're not using S3FS mapping, so we have no warnings to show.
         return
-    m = CGAP_S3FS_MAPPING_PATTERN.match(s3fs_mapping)
-    if not m:
-        # We were trying to use S3FS mapping, but the mapping info is in bad form.
-        show(f"CGAP_F3FS_MAPPING is in improper form: {s3fs_mapping!r}")
-        return
-    mapped_bucket, mapped_dir = m.groups()
-    mapped_dir = mapped_dir.rstrip('/')
+    mapped_dir = upload_dir.rstrip('/')
     pattern = f"^(?:{re.escape(mapped_dir)}|{re.escape(os.path.expanduser(mapped_dir))})/(.*)$"
     m = re.match(pattern, filename)
     if not m:
         # Some files might not match our mapping.
         return
     mapped_key = m.group(1)
-    return mapped_bucket, mapped_key
+    candidates = bash_enumeration(upload_buckets)
+    for mapped_bucket in candidates:
+        try:
+            s3.head_object(Bucket=mapped_bucket, Key=mapped_key)  # an error means we're failing
+            return mapped_bucket, mapped_key
+        except Exception:
+            pass
+    else:
+        # No suitable match found
+        return
+
+
+STRING_LIST_SEPARATORS = str.maketrans("\n\t,", "   ")
+
+
+def bash_enumeration(string_list):
+    return [x for x in string_list.translate(STRING_LIST_SEPARATORS).split(" ") if x]
 
 
 def maybe_show_s3fs_warnings(filename):
