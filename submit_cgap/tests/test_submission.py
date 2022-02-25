@@ -6,7 +6,7 @@ import re
 
 from dcicutils.qa_utils import (
     override_environ, ignored, ControlledTime, MockFileSystem, local_attrs, raises_regexp, printed_output,
-    MockBoto3, MockBotoS3Client, MockKeysNotImplemented
+    MockBoto3, MockBotoS3Client,  # MockKeysNotImplemented,
 )
 from dcicutils.s3_utils import HealthPageKey
 from unittest import mock
@@ -2307,6 +2307,7 @@ def test_maybe_show_s3fs_warnings():
                         assert printed.lines == [
                             f"The file {some_file} is mapped via S3FS to {storage_class} storage."
                         ]
+
 
 def test_bash_enumeration():
 

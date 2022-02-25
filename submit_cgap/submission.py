@@ -730,7 +730,7 @@ def maybe_show_s3fs_warnings(filename, *, s3=None):
     try:
         metadata = s3.head_object(Bucket=mapped_bucket, Key=mapped_key)
         storage_class = metadata['StorageClass']
-        if not storage_class in AVAILABLE_S3_STORAGE_CLASSES:
+        if storage_class not in AVAILABLE_S3_STORAGE_CLASSES:
             show(f"The file {filename} is mapped via S3FS to {storage_class} storage.")
     except Exception as e:
         # Add some context for an error message we're about to see on the console.
