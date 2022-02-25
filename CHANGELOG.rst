@@ -7,10 +7,45 @@ Change Log
 ----------
 
 
-1.2.0
+1.5.0
 =====
 
 * Better error diagnostics for S3FS-mounted files that are glaciated if CGAP_S3FS_MOUNT_DIR is set.
+
+
+1.4.0
+=====
+
+* Suppress stack traceback on unexpected errors.
+* Allow suppression behavior to be overridden by setting environment variable ``DEBUG_CGAP=TRUE``.
+* Add an instructive herald before unexpected errors, suggesting that a bug report might need to be filed.
+
+
+1.3.0
+=====
+
+* Supports Python 3.9
+
+
+1.2.0
+=====
+
+* Supports Python 3.8
+
+
+1.1.3
+=====
+
+* Fixed name of keyfile in installation documentation and added/modified some of
+  the wording and examples.
+
+
+1.1.2
+=====
+
+* Documentation reorganized; some documentation specific to submitting
+  family histories added.
+
 
 1.1.1
 =====
