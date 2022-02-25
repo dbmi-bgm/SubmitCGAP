@@ -10,7 +10,8 @@ Change Log
 1.5.0
 =====
 
-* Better error diagnostics for S3FS-mounted files that are glaciated if CGAP_S3FS_MOUNT_DIR is set.
+* Better error diagnostics for S3FS-mounted files that are glaciated
+  if the ``CGAP_S3FS_UPLOAD_BUCKETS`` and ``CGAP_S3FS_UPLOAD_DIR`` environment variables are set.
 
 
 1.4.0

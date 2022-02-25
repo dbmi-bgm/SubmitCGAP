@@ -2151,48 +2151,96 @@ def test_submit_any_ingestion_new_protocol():
 
 
 def test_check_s3fs_mapped_filename():
+    """
+    This will test that the mapping-finder works under various situations of buckets present or missing.
+    The idea is that there might be a key1 that we expect to find in a bucket1, assuming bucket1 is mapped,
+    and a key2 in a bucket2 if that bucket is mapped. But the filename we'll see will contain only the key,
+    not the bucket, so the bucket finder has to call .head_object to know if the key is there. It can then
+    find the key no matter what bucket it's in.
+    """
 
     raw_mapping_dir = "~/my-uploads"
     expanded_mapping_dir = os.path.expanduser(raw_mapping_dir)
-    my_bucket = 'some-bucket-of-mine'
-    my_key = "12345/bar.baz"
-    expected = (my_bucket, my_key)
+    bucket1 = 'foo1'
+    key1 = "12345/bar.baz"
+    bucket2 = 'foo2'
+    key2 = '67890/bar.baz'
 
-    for mapping_dir in [raw_mapping_dir, expanded_mapping_dir]:
-        for suffix in ["", "/"]:
-            cgap_s3fs_mapping = f'{my_bucket}:{mapping_dir}{suffix}'
-            with override_environ(CGAP_S3FS_MAPPING=cgap_s3fs_mapping):
-                sample_filename = f'{mapping_dir}/{my_key}'
-                print(f"\nCGAP_S3FS_MAPPING={cgap_s3fs_mapping} sample_filename={sample_filename}")
-                parsed = check_s3fs_mapped_filename(sample_filename)
-                print(f"parsed={parsed}")
-                assert parsed == expected
+    class FakeS3ClientForTesting:
+        """
+        The only operation our test client needs to support is head_object, and only for side-effect. See below.
+        If other operations get called, we want to know about it, so we use a one-off class.
+        Having done f = FakeS3CLientForTesting("foo/bar"), later doing f.head_object(Bucket="foo", Key="bar") will
+        return without error but other arguments will not.
+        """
 
-                with printed_output() as printed:
-                    sample_unmapped_filename = 'something.else'
-                    parsed = check_s3fs_mapped_filename(sample_unmapped_filename)
-                    assert not parsed
-                    assert printed.lines == []
+        def __init__(self, filenames=None):
+            """Create the class with a list of 'files' in our fake S3."""
+            self.filenames = filenames or []
 
-                with override_environ(CGAP_S3FS_MAPPING=""):
-                    with printed_output() as printed:
-                        parsed = check_s3fs_mapped_filename(sample_filename)
-                        assert not parsed
-                        assert printed.lines == []
+        def head_object(self, Bucket, Key):  # noQA
+            """We're only being called for side-effect. A non-error return means the file is there."""
+            filename = f"{Bucket}/{Key}"
+            if filename in self.filenames:
+                return {'found': filename}
+            else:
+                raise RuntimeError("File not found.")
 
-                with override_environ(CGAP_S3FS_MAPPING=None):
-                    with printed_output() as printed:
-                        parsed = check_s3fs_mapped_filename(sample_filename)
-                        assert not parsed
-                        assert printed.lines == []
+    fake_s3 = FakeS3ClientForTesting(filenames=[f"{bucket1}/{key1}", f"{bucket2}/{key2}"])
 
-                bad_cgap_s3fs_mapping = "something with no colon"
-                with override_environ(CGAP_S3FS_MAPPING=bad_cgap_s3fs_mapping):
-                    with printed_output() as printed:
-                        parsed = check_s3fs_mapped_filename(sample_filename)
-                        assert not parsed
-                        assert printed.lines == [f"CGAP_F3FS_MAPPING is in improper form:"
-                                                 f" {repr(bad_cgap_s3fs_mapping)}"]
+    def do_testing(mapped_buckets):
+        """
+        We expect a set of mapped buckets like ['bucket1', 'bucket2'] and will run the set of tests on that.
+        The expectation is that if 'bucket1' is anywhere in the list, then key1 will be found in it,
+        and if 'bucket2' is anywhere in the list, then key2 will be found in it. Otherwise None.
+        """
+        expectations = {'decoy': None,
+                        key1: (bucket1, key1) if bucket1 in mapped_buckets else None,
+                        key2: (bucket2, key2) if bucket2 in mapped_buckets else None}
+        for mapping_dir in [raw_mapping_dir, expanded_mapping_dir]:
+            for suffix in ["", "/"]:
+                for upload_key in [key1, key2, 'decoy']:
+                    upload_dir = f"{mapping_dir}{suffix}"
+                    upload_buckets = ",".join(mapped_buckets)
+                    with override_environ(CGAP_S3FS_UPLOAD_BUCKETS=upload_buckets, CGAP_S3FS_UPLOAD_DIR=upload_dir):
+                        sample_filename = f'{mapping_dir}/{upload_key}'
+                        print(f"\nCGAP_S3FS_UPLOAD_BUCKETS={upload_buckets} CGAP_S3FS_UPLOAD_DIR={upload_dir}"
+                              f" sample_filename={sample_filename} key={upload_key}")
+                        parsed = check_s3fs_mapped_filename(sample_filename, s3=fake_s3)
+                        print(f"parsed={parsed}")
+                        assert parsed == expectations[upload_key]
+
+                        with printed_output() as printed:
+                            sample_unmapped_filename = 'something.else'
+                            parsed = check_s3fs_mapped_filename(sample_unmapped_filename, s3=fake_s3)
+                            assert not parsed
+                            assert printed.lines == []
+
+                        with override_environ(CGAP_S3FS_UPLOAD_BUCKETS=""):
+                            with printed_output() as printed:
+                                parsed = check_s3fs_mapped_filename(sample_filename, s3=fake_s3)
+                                assert not parsed
+                                assert printed.lines == []
+
+                        with override_environ(CGAP_S3FS_UPLOAD_DIR=""):
+                            with printed_output() as printed:
+                                parsed = check_s3fs_mapped_filename(sample_filename, s3=fake_s3)
+                                assert not parsed
+                                assert printed.lines == []
+
+                        with override_environ(CGAP_S3FS_UPLOAD_DIR=None):
+                            with printed_output() as printed:
+                                parsed = check_s3fs_mapped_filename(sample_filename, s3=fake_s3)
+                                assert not parsed
+                                assert printed.lines == []
+
+    for mapped_buckets in [[],
+                           [bucket1],
+                           [bucket2],
+                           [bucket1, bucket2],
+                           [bucket2, bucket1],
+                           ['decoy', bucket1, bucket2]]:
+        do_testing(mapped_buckets)
 
 
 def test_maybe_show_s3fs_warnings():
@@ -2200,10 +2248,6 @@ def test_maybe_show_s3fs_warnings():
     class MockBotoStandardS3Client(MockBotoS3Client):
         DEFAULT_STORAGE_CLASS = 'STANDARD'
     mock_boto3_with_standard_s3 = MockBoto3(s3=MockBotoStandardS3Client)
-
-    class MockBotoDeepArchiveS3Client(MockBotoS3Client):
-        DEFAULT_STORAGE_CLASS = 'DEEP_ARCHIVE'
-    mock_boto3_with_deep_archive_s3 = MockBoto3(s3=MockBotoDeepArchiveS3Client)
 
     with mock.patch.object(submission_module, "check_s3fs_mapped_filename") as mock_check:
 
@@ -2213,6 +2257,11 @@ def test_maybe_show_s3fs_warnings():
             mock_check.return_value = None
 
             some_file = 'some_upload_dir/some.file'
+
+            with printed_output() as printed:
+                # This just tests that explicitly passing the argument works.
+                maybe_show_s3fs_warnings(some_file, s3=mock_boto3)
+                assert printed.lines == []
 
             with printed_output() as printed:
                 maybe_show_s3fs_warnings(some_file)
@@ -2261,8 +2310,10 @@ def test_maybe_show_s3fs_warnings():
 
 def test_bash_enumeration():
 
+    # The bash_enumeration function is just testing that a user of bash, having made what they informally think
+    # of as a list, will have specified something coherent. They can use commas, spaces, or newlines as separators.
+
     assert bash_enumeration('foo bar baz') == ['foo', 'bar', 'baz']
     assert bash_enumeration('foo\nbar\nbaz') == ['foo', 'bar', 'baz']
     assert bash_enumeration('foo, bar,baz') == ['foo', 'bar', 'baz']
     assert bash_enumeration('foo,\n  bar   ,,,baz, \n') == ['foo', 'bar', 'baz']
-

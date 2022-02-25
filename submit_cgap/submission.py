@@ -668,18 +668,26 @@ AVAILABLE_S3_STORAGE_CLASSES = [
 CGAP_S3FS_MAPPING_PATTERN = re.compile(r"^([^:]+):(.+)$")
 
 
-def check_s3fs_mapped_filename(filename, s3=None):
-    upload_buckets = os.environ.get("UPLOAD_BUCKETS")
-    upload_dir = os.environ.get("UPLOAD_DIR")
+def check_s3fs_mapped_filename(filename, *, s3):
+    """
+    Determines whether a given filename is believed to be mapped by s3fs.
+
+    :param filename: the filename to check
+    :param s3: an s3 client.
+    :return:
+    """
+    s3 = s3 or boto3.client('s3')
+    upload_buckets = os.environ.get("CGAP_S3FS_UPLOAD_BUCKETS")
+    upload_dir = os.environ.get("CGAP_S3FS_UPLOAD_DIR")
     if not upload_buckets or not upload_dir:
         # We're not using S3FS mapping, so we have no warnings to show.
-        return
+        return None
     mapped_dir = upload_dir.rstrip('/')
     pattern = f"^(?:{re.escape(mapped_dir)}|{re.escape(os.path.expanduser(mapped_dir))})/(.*)$"
     m = re.match(pattern, filename)
     if not m:
         # Some files might not match our mapping.
-        return
+        return None
     mapped_key = m.group(1)
     candidates = bash_enumeration(upload_buckets)
     for mapped_bucket in candidates:
@@ -690,24 +698,36 @@ def check_s3fs_mapped_filename(filename, s3=None):
             pass
     else:
         # No suitable match found
-        return
+        return None
 
 
 STRING_LIST_SEPARATORS = str.maketrans("\n\t,", "   ")
 
 
 def bash_enumeration(string_list):
+    """
+    For use to parse a bash variable value that purports to contain a list.
+    The items in the list can be separated by commas, spaces, or newlines
+    (and so the elements may not contain those characters).
+
+    :param string_list: a string representing a list of items separated by commas, spaces, or newlines.
+    :return: the items in the list, as strings
+    """
     return [x for x in string_list.translate(STRING_LIST_SEPARATORS).split(" ") if x]
 
 
-def maybe_show_s3fs_warnings(filename):
-    mapped_bucket_and_key = check_s3fs_mapped_filename(filename)
+def maybe_show_s3fs_warnings(filename, *, s3=None):
+    """
+    If the indicated filename is mapped bucket by s3fs to an s3 bucket/key,
+    this checks whether warning about its storage class is warranted and, if it is, presents such a warning.
+    """
+    s3 = s3 or boto3.client('s3')  # noQA
+    mapped_bucket_and_key = check_s3fs_mapped_filename(filename, s3=s3)
     if not mapped_bucket_and_key:
         return False
     # If we get to here, we have a plausibly mapped filename that we might want to warn about.
     mapped_bucket, mapped_key = mapped_bucket_and_key
     try:
-        s3 = boto3.client('s3')
         metadata = s3.head_object(Bucket=mapped_bucket, Key=mapped_key)
         storage_class = metadata['StorageClass']
         if not storage_class in AVAILABLE_S3_STORAGE_CLASSES:
