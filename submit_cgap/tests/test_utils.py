@@ -2,8 +2,9 @@ import contextlib
 import pytest
 import re
 
-from dcicutils.misc_utils import override_environ, environ_bool
+from dcicutils.misc_utils import ignored, override_environ, environ_bool
 from unittest import mock
+
 from .. import utils as utils_module
 from ..utils import show, keyword_as_title, FakeResponse, script_catch_errors, ERROR_HERALD
 
@@ -133,6 +134,7 @@ def test_script_catch_errors():
     with mock.patch.object(utils_module, "DEBUG_CGAP", True):
         with shown_output() as shown:
             with pytest.raises(Exception) as caught:
+                ignored(caught)
                 with script_catch_errors():
                     raise Exception("Foo")
             assert shown.lines == []  # The value was not trapped, so not shown

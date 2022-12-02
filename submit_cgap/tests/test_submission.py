@@ -1,29 +1,29 @@
 import contextlib
 import io
 import os
+import platform
 import pytest
 import re
 
-from dcicutils.qa_utils import (
-    override_environ, ignored, ControlledTime, MockFileSystem, local_attrs, raises_regexp, printed_output,
-    MockBoto3, MockBotoS3Client,  # MockKeysNotImplemented,
-)
+from dcicutils.misc_utils import ignored, local_attrs, override_environ
+from dcicutils.qa_utils import ControlledTime, MockFileSystem, raises_regexp, printed_output, MockBoto3, MockBotoS3Client
 from dcicutils.s3_utils import HealthPageKey
 from unittest import mock
 from .test_utils import shown_output
 from .test_upload_item_data import TEST_ENCRYPT_KEY
 from .. import submission as submission_module
 from .. import utils as utils_module
-from ..base import PRODUCTION_SERVER
+from ..base import PRODUCTION_SERVER, KEY_MANAGER
 from ..exceptions import CGAPPermissionError
 from ..submission import (
     SERVER_REGEXP, get_defaulted_institution, get_defaulted_project, do_any_uploads, do_uploads, show_upload_info,
     execute_prearranged_upload, get_section, get_user_record, ingestion_submission_item_url,
     resolve_server, resume_uploads, show_section, submit_any_ingestion,
     upload_file_to_uuid, upload_item_data, PROGRESS_CHECK_INTERVAL,
-    get_s3_encrypt_key_id, get_s3_encrypt_key_id_from_health_page,
+    get_s3_encrypt_key_id, get_s3_encrypt_key_id_from_health_page, running_on_windows_native,
     check_s3fs_mapped_filename, maybe_show_s3fs_warnings, ALL_S3_STORAGE_CLASSES, AVAILABLE_S3_STORAGE_CLASSES,
     bash_enumeration,
+    search_for_file, UploadMessageWrapper, upload_extra_files,
 )
 from ..utils import FakeResponse, script_catch_errors, ERROR_HERALD
 
@@ -74,6 +74,8 @@ SOME_UPLOAD_CREDENTIALS = {
     'upload_url': SOME_UPLOAD_URL,
 }
 
+SOME_FILE_METADATA = {"upload_credentials": SOME_UPLOAD_CREDENTIALS}
+
 SOME_S3_ENCRYPT_KEY_ID = 'some/encrypt/key'
 
 SOME_EXTENDED_UPLOAD_CREDENTIALS = {
@@ -84,11 +86,7 @@ SOME_EXTENDED_UPLOAD_CREDENTIALS = {
     's3_encrypt_key_id': SOME_S3_ENCRYPT_KEY_ID,
 }
 
-SOME_UPLOAD_CREDENTIALS_RESULT = {
-    '@graph': [
-        {'upload_credentials': SOME_UPLOAD_CREDENTIALS}
-    ]
-}
+SOME_UPLOAD_CREDENTIALS_RESULT = {'@graph': [SOME_FILE_METADATA]}
 
 SOME_UPLOAD_INFO = [
     {'uuid': '1234', 'filename': 'f1.fastq.gz'},
@@ -119,6 +117,31 @@ SOME_ENVIRON_WITH_CREDS = {
     'AWS_SECRET_ACCESS_KEY': 'some-secret',
     'AWS_SECURITY_TOKEN': 'some-session-token',
 }
+
+ANOTHER_FILE_NAME = "another_file"
+
+SOME_EXTRA_FILE_CREDENTIALS = [
+    {"filename": SOME_FILENAME, "upload_credentials": SOME_ENVIRON_WITH_CREDS},
+    {"filename": ANOTHER_FILE_NAME, "upload_credentials": SOME_ENVIRON_WITH_CREDS},
+]
+
+SOME_FILE_METADATA_WITH_EXTRA_FILE_CREDENTIALS = {
+    "extra_files_creds": SOME_EXTRA_FILE_CREDENTIALS
+}
+
+
+def _independently_confirmed_as_running_on_windows_native():
+    # There are two ways to tell if we're running on Windows native:
+    #    os.name == 'nt' (as opposed to 'posix')
+    #    platform.system() == 'Windows' (as opposed to 'Linux', 'Darwin', or 'CYGWIN_NT-<version>'
+    # Since we're wanting to test one of these, we  use the other mechansim to confirm things.
+    standard_result = running_on_windows_native()
+    independent_result = platform.system() == 'Windows'
+    assert standard_result == independent_result, (
+        f"Mechanisms for telling whether we're on Windows disagree:"
+        f" standard_result={standard_result} independent_result={independent_result}"
+    )
+    return independent_result
 
 
 @contextlib.contextmanager
@@ -169,54 +192,83 @@ def test_server_regexp():
 
 def test_resolve_server():
 
-    def mocked_get_beanstalk_real_url(env):
+    # def mocked_get_beanstalk_real_url(env):
+    #     # We don't HAVE to be mocking this function, but it's slow so this will speed up testing. -kmp 4-Sep-2020
+    #     if env == 'fourfront-cgap':
+    #         return PRODUCTION_SERVER
+    #     elif env in ['fourfront-cgapdev', 'fourfront-cgapwolf', 'fourfront-cgaptest']:
+    #         return 'http://' + env + ".something.elasticbeanstalk.com"
+    #     else:
+    #         raise ValueError("Unexpected beanstalk env: %s" % env)
+
+    def mocked_get_keydict_for_env(env):
         # We don't HAVE to be mocking this function, but it's slow so this will speed up testing. -kmp 4-Sep-2020
         if env == 'fourfront-cgap':
-            return PRODUCTION_SERVER
+            return {"server": PRODUCTION_SERVER}
         elif env in ['fourfront-cgapdev', 'fourfront-cgapwolf', 'fourfront-cgaptest']:
-            return 'http://' + env + ".something.elasticbeanstalk.com"
+            return {"server": 'http://' + env + ".something.elasticbeanstalk.com"}
         else:
             raise ValueError("Unexpected beanstalk env: %s" % env)
 
-    with mock.patch.object(submission_module, "get_beanstalk_real_url", mocked_get_beanstalk_real_url):
+    def mocked_get_keydict_for_server(server):
+        # We don't HAVE to be mocking this function, but it's slow so this will speed up testing. -kmp 4-Sep-2020
+        if server == PRODUCTION_SERVER:
+            return {"server": PRODUCTION_SERVER}
+        else:
+            for env in ['fourfront-cgapdev', 'fourfront-cgapwolf', 'fourfront-cgaptest']:
+                url = 'http://' + env + ".something.elasticbeanstalk.com"
+                if server == url:
+                    return {"server": url}
+            raise ValueError("Unexpected beanstalk env: %s" % env)
 
-        with pytest.raises(SyntaxError):
-            resolve_server(env='something', server='something_else')
+    with mock.patch.object(KEY_MANAGER, "get_keydict_for_env", mocked_get_keydict_for_env):
+        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", mocked_get_keydict_for_server):
 
-        with override_environ(SUBMIT_CGAP_DEFAULT_ENV=None):
+            # with mock.patch.object(submission_module, "get_beanstalk_real_url", mocked_get_beanstalk_real_url):
 
-            with mock.patch.object(submission_module, "DEFAULT_ENV", None):
+            with pytest.raises(SyntaxError):
+                resolve_server(env='something', server='something_else')
 
-                assert resolve_server(env=None, server=None) == PRODUCTION_SERVER
+            with override_environ(SUBMIT_CGAP_DEFAULT_ENV=None):
 
-            with mock.patch.object(submission_module, "DEFAULT_ENV", 'fourfront-cgapdev'):
+                with mock.patch.object(submission_module, "DEFAULT_ENV", None):
 
-                cgap_dev_server = resolve_server(env=None, server=None)
+                    assert resolve_server(env=None, server=None) == PRODUCTION_SERVER
 
-                assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
-                                cgap_dev_server)
+                with mock.patch.object(submission_module, "DEFAULT_ENV", 'fourfront-cgapdev'):
 
-        with pytest.raises(SyntaxError):
-            resolve_server(env='fourfront-cgapfoo', server=None)
+                    cgap_dev_server = resolve_server(env=None, server=None)
 
-        with pytest.raises(SyntaxError):
-            resolve_server(env='cgapfoo', server=None)
+                    assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
+                                    cgap_dev_server)
 
-        with pytest.raises(ValueError):
-            resolve_server(server="http://foo.bar", env=None)
+            with pytest.raises(SyntaxError):
+                resolve_server(env='fourfront-cgapfoo', server=None)
 
-        assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
-                        resolve_server(env='fourfront-cgapdev', server=None))
+            with pytest.raises(SyntaxError):
+                resolve_server(env='cgapfoo', server=None)
 
-        assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
-                        resolve_server(env='cgapdev', server=None))  # Omitting 'fourfront-' is allowed
+            with pytest.raises(ValueError):
+                resolve_server(server="http://foo.bar", env=None)
 
-        assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
-                        resolve_server(server=cgap_dev_server, env=None))  # Identity operation
+            assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
+                            resolve_server(env='fourfront-cgapdev', server=None))
 
-        for orchestrated_server in SOME_ORCHESTRATED_SERVERS:
-            assert re.match("http://cgap-[a-z]+.+amazonaws.com",
-                            resolve_server(server=orchestrated_server, env=None))  # non-fourfront environments
+            # Since we're not using env_Utils.full_cgap_env_name, we can't know the answer to this:
+            #
+            # assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
+            #                 resolve_server(env='cgapdev', server=None))  # Omitting 'fourfront-' is allowed
+
+            with pytest.raises(SyntaxError) as exc:
+                resolve_server(env='cgapdev', server=None)
+            assert str(exc.value) == "The specified env is not a known environment name: cgapdev"
+
+            assert re.match("http://fourfront-cgapdev[.].*[.]elasticbeanstalk.com",
+                            resolve_server(server=cgap_dev_server, env=None))  # Identity operation
+
+            for orchestrated_server in SOME_ORCHESTRATED_SERVERS:
+                assert re.match("http://cgap-[a-z]+.+amazonaws.com",
+                                resolve_server(server=orchestrated_server, env=None))  # non-fourfront environments
 
 
 def make_user_record(title='J Doe',
@@ -627,7 +679,7 @@ def test_resume_uploads():
 
     with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
         with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
-            with mock.patch.object(submission_module, "get_keydict_for_server", return_value=SOME_KEYDICT):
+            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", return_value=SOME_KEYDICT):
                 some_response_json = {'some': 'json'}
                 with mock.patch("requests.get", return_value=FakeResponse(200, json=some_response_json)):
                     with mock.patch.object(submission_module, "do_any_uploads") as mock_do_any_uploads:
@@ -644,7 +696,7 @@ def test_resume_uploads():
 
     with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
         with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
-            with mock.patch.object(submission_module, "get_keydict_for_server", return_value=SOME_KEYDICT):
+            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", return_value=SOME_KEYDICT):
                 with mock.patch("requests.get", return_value=FakeResponse(401, json=SOME_BAD_RESULT)):
                     with mock.patch.object(submission_module, "do_any_uploads") as mock_do_any_uploads:
                         with pytest.raises(Exception):
@@ -661,61 +713,96 @@ class MockTime:
         return (self._time.now() - self._time.INITIAL_TIME).total_seconds()
 
 
-def test_execute_prearranged_upload():
+OS_SIMULATION_MODES = {
+    "windows": {"os.name": "nt", "platform.system": "Windows"},
+    "cygwin": {"os.name": "posix", "platform.system": "CYGWIN_NT-10.0"},  # just one of many examples
+    "linux": {"os.name": "posix", "platform.system": "Linux"},
+    "macos": {"os.name": "posix", "platform.system": "Darwin"}
+}
 
-    with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
-        with shown_output() as shown:
-            with pytest.raises(ValueError):
-                bad_credentials = SOME_UPLOAD_CREDENTIALS.copy()
-                bad_credentials.pop('SessionToken')
-                # This will abort quite early because it can't construct a proper set of credentials as env vars.
-                # Nothing has to be mocked because it won't get that far.
-                execute_prearranged_upload('this-file-name-is-not-used', bad_credentials)
-            assert shown.lines == []
+OS_SIMULATION_MODE_NAMES = list(OS_SIMULATION_MODES.keys())
 
-    with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
-        with shown_output() as shown:
-            with mock.patch("time.time", MockTime().time):
-                with mock.patch("subprocess.call", return_value=0) as mock_aws_call:
-                    execute_prearranged_upload(path=SOME_FILENAME, upload_credentials=SOME_UPLOAD_CREDENTIALS)
-                    mock_aws_call.assert_called_with(
-                        ['aws', 's3', 'cp', '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
-                        env=SOME_ENVIRON_WITH_CREDS
-                    )
-                    assert shown.lines == [
-                        "Going to upload some-filename to some-url.",
-                        "Uploaded in 1.00 seconds"  # 1 tick (at rate of 1 second per tick in our controlled time)
-                    ]
 
-    with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
-        with shown_output() as shown:
-            with mock.patch("time.time", MockTime().time):
-                with mock.patch("subprocess.call", return_value=0) as mock_aws_call:
-                    execute_prearranged_upload(path=SOME_FILENAME, upload_credentials=SOME_EXTENDED_UPLOAD_CREDENTIALS)
-                    mock_aws_call.assert_called_with(
-                        ['aws', 's3', 'cp',
-                         '--sse', 'aws:kms', '--sse-kms-key-id', SOME_S3_ENCRYPT_KEY_ID,
-                         '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
-                        env=SOME_ENVIRON_WITH_CREDS
-                    )
-                    assert shown.lines == [
-                        "Going to upload some-filename to some-url.",
-                        "Uploaded in 1.00 seconds"  # 1 tick (at rate of 1 second per tick in our controlled time)
-                    ]
+@contextlib.contextmanager
+def os_simulation(*, simulation_mode):
 
-    with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
-        with shown_output() as shown:
-            with mock.patch("time.time", MockTime().time):
-                with mock.patch("subprocess.call", return_value=17) as mock_aws_call:
-                    with raises_regexp(RuntimeError, "Upload failed with exit code 17"):
+    assert simulation_mode in OS_SIMULATION_MODES, f"{simulation_mode} is not a defined os simulation mode."
+    info = OS_SIMULATION_MODES[simulation_mode]
+    os_name = info['os.name']
+
+    def mocked_system():
+        return info['platform.system']
+
+    with mock.patch.object(os, "name", os_name):
+        with mock.patch.object(platform, "system") as mock_system:
+            mock_system.side_effect = mocked_system
+            yield
+
+
+@pytest.mark.parametrize("os_simulation_mode", OS_SIMULATION_MODE_NAMES)
+def test_execute_prearranged_upload(os_simulation_mode: str):
+    with os_simulation(simulation_mode=os_simulation_mode):
+        with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
+            with shown_output() as shown:
+                with pytest.raises(ValueError):
+                    bad_credentials = SOME_UPLOAD_CREDENTIALS.copy()
+                    bad_credentials.pop('SessionToken')
+                    # This will abort quite early because it can't construct a proper set of credentials as env vars.
+                    # Nothing has to be mocked because it won't get that far.
+                    execute_prearranged_upload('this-file-name-is-not-used', bad_credentials)
+                assert shown.lines == []
+
+        subprocess_options = {}
+        if _independently_confirmed_as_running_on_windows_native():
+            subprocess_options = {'shell': True}
+
+        with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
+            with shown_output() as shown:
+                with mock.patch("time.time", MockTime().time):
+                    with mock.patch("subprocess.call", return_value=0) as mock_aws_call:
                         execute_prearranged_upload(path=SOME_FILENAME, upload_credentials=SOME_UPLOAD_CREDENTIALS)
-                    mock_aws_call.assert_called_with(
-                        ['aws', 's3', 'cp', '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
-                        env=SOME_ENVIRON_WITH_CREDS
-                    )
-                    assert shown.lines == [
-                        "Going to upload some-filename to some-url.",
-                    ]
+                        mock_aws_call.assert_called_with(
+                            ['aws', 's3', 'cp', '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
+                            env=SOME_ENVIRON_WITH_CREDS,
+                            **subprocess_options
+                        )
+                        assert shown.lines == [
+                            "Going to upload some-filename to some-url.",
+                            "Uploaded in 1.00 seconds"  # 1 tick (at rate of 1 second per tick in our controlled time)
+                        ]
+
+        with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
+            with shown_output() as shown:
+                with mock.patch("time.time", MockTime().time):
+                    with mock.patch("subprocess.call", return_value=0) as mock_aws_call:
+                        execute_prearranged_upload(path=SOME_FILENAME,
+                                                   upload_credentials=SOME_EXTENDED_UPLOAD_CREDENTIALS)
+                        mock_aws_call.assert_called_with(
+                            ['aws', 's3', 'cp',
+                             '--sse', 'aws:kms', '--sse-kms-key-id', SOME_S3_ENCRYPT_KEY_ID,
+                             '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
+                            env=SOME_ENVIRON_WITH_CREDS,
+                            **subprocess_options
+                        )
+                        assert shown.lines == [
+                            "Going to upload some-filename to some-url.",
+                            "Uploaded in 1.00 seconds"  # 1 tick (at rate of 1 second per tick in our controlled time)
+                        ]
+
+        with mock.patch.object(os, "environ", SOME_ENVIRON.copy()):
+            with shown_output() as shown:
+                with mock.patch("time.time", MockTime().time):
+                    with mock.patch("subprocess.call", return_value=17) as mock_aws_call:
+                        with raises_regexp(RuntimeError, "Upload failed with exit code 17"):
+                            execute_prearranged_upload(path=SOME_FILENAME, upload_credentials=SOME_UPLOAD_CREDENTIALS)
+                        mock_aws_call.assert_called_with(
+                            ['aws', 's3', 'cp', '--only-show-errors', SOME_FILENAME, SOME_UPLOAD_URL],
+                            env=SOME_ENVIRON_WITH_CREDS,
+                            **subprocess_options
+                        )
+                        assert shown.lines == [
+                            "Going to upload some-filename to some-url.",
+                        ]
 
 
 @pytest.mark.parametrize('debug_protocol', [False, True])
@@ -779,7 +866,8 @@ def test_upload_file_to_uuid():
 
     with mock.patch("dcicutils.ff_utils.patch_metadata", return_value=SOME_UPLOAD_CREDENTIALS_RESULT):
         with mock.patch.object(submission_module, "execute_prearranged_upload") as mocked_upload:
-            upload_file_to_uuid(filename=SOME_FILENAME, uuid=SOME_UUID, auth=SOME_AUTH)
+            metadata = upload_file_to_uuid(filename=SOME_FILENAME, uuid=SOME_UUID, auth=SOME_AUTH)
+            assert metadata == SOME_FILE_METADATA
             mocked_upload.assert_called_with(SOME_FILENAME, auth=SOME_AUTH,
                                              upload_credentials=SOME_UPLOAD_CREDENTIALS)
 
@@ -992,11 +1080,53 @@ def test_do_uploads(tmp_path):
                 % (filename, folder_str + "/**", ", ".join([another_file_path, file_path]))
             ]
 
+    # Test extra files credentials found and passed to handler
+    def return_first_arg(first_arg, *args, **kwargs):
+        ignored(args, kwargs)
+        return first_arg
+
+    mocked_instance = mock.MagicMock()
+    mocked_instance.wrap_upload_function = mock.MagicMock(side_effect=return_first_arg)
+    mocked_upload_message_wrapper = mock.MagicMock(return_value=mocked_instance)
+#    mocked_upload_message_wrapper().wrap_upload_function = mock.MagicMock(
+#        side_effect=return_first_arg
+#    )
+    with mock.patch.object(
+        submission_module,
+        "upload_file_to_uuid",
+        return_value=SOME_FILE_METADATA_WITH_EXTRA_FILE_CREDENTIALS,
+    ) as mocked_upload_file_to_uuid:
+        with mock.patch.object(
+            submission_module, "upload_extra_files"
+        ) as mocked_upload_extra_files:
+            with mock.patch.object(
+                submission_module,
+                "UploadMessageWrapper",
+                mocked_upload_message_wrapper,
+            ):
+                with shown_output() as shown:
+                    ignored(shown)
+                    do_uploads(
+                        upload_spec_list,
+                        auth=SOME_AUTH,
+                        folder=folder,
+                        no_query=True,
+                        subfolders=False,
+                    )
+                    mocked_upload_file_to_uuid.assert_called_once()
+                    mocked_upload_extra_files.assert_called_once_with(
+                        SOME_EXTRA_FILE_CREDENTIALS,
+                        mocked_instance,
+                        folder,
+                        SOME_AUTH,
+                        recursive=False,
+                    )
+
 
 def test_upload_item_data():
 
     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER) as mock_resolve:
-        with mock.patch.object(submission_module, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
+        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
             with mock.patch.object(submission_module, "yes_or_no", return_value=True):
                 with mock.patch.object(submission_module, "upload_file_to_uuid") as mock_upload:
 
@@ -1007,7 +1137,7 @@ def test_upload_item_data():
                     mock_upload.assert_called_with(filename=SOME_FILENAME, uuid=SOME_UUID, auth=SOME_KEYDICT)
 
     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER) as mock_resolve:
-        with mock.patch.object(submission_module, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
+        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
             with mock.patch.object(submission_module, "yes_or_no", return_value=False):
                 with mock.patch.object(submission_module, "upload_file_to_uuid") as mock_upload:
 
@@ -1028,7 +1158,7 @@ def test_upload_item_data():
                     assert mock_upload.call_count == 0
 
     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER) as mock_resolve:
-        with mock.patch.object(submission_module, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
+        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server", return_value=SOME_KEYDICT) as mock_get:
             with mock.patch.object(submission_module, "upload_file_to_uuid") as mock_upload:
 
                 upload_item_data(item_filename=SOME_FILENAME, uuid=SOME_UUID,
@@ -1147,34 +1277,32 @@ def test_submit_any_ingestion_old_protocol():
             with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                 with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                     with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                        with mock.patch.object(submission_module, "get_keydict_for_server",
+                        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                return_value=SOME_KEYDICT):
                             with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                                 with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                                    with mock.patch.object(submission_module, "get_keydict_for_server",
-                                                           return_value=SOME_KEYDICT):
-                                        with mock.patch("requests.post", mocked_post):
-                                            with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
-                                                try:
-                                                    submit_any_ingestion(SOME_BUNDLE_FILENAME,
-                                                                         ingestion_type='metadata_bundle',
-                                                                         institution=SOME_INSTITUTION,
-                                                                         project=SOME_PROJECT,
-                                                                         server=SOME_SERVER,
-                                                                         env=None,
-                                                                         validate_only=False,
-                                                                         no_query=False,
-                                                                         subfolders=False,
-                                                                         )
-                                                except ValueError as e:
-                                                    # submit_any_ingestion will raise ValueError if its
-                                                    # bundle_filename argument is not the name of a
-                                                    # metadata bundle file. We did nothing in this mock to
-                                                    # create the file SOME_BUNDLE_FILENAME, so we expect something
-                                                    # like: "The file '/some-folder/foo.xls' does not exist."
-                                                    assert "does not exist" in str(e)
-                                                else:  # pragma: no cover
-                                                    raise AssertionError("Expected ValueError did not happen.")
+                                    with mock.patch("requests.post", mocked_post):
+                                        with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
+                                            try:
+                                                submit_any_ingestion(SOME_BUNDLE_FILENAME,
+                                                                     ingestion_type='metadata_bundle',
+                                                                     institution=SOME_INSTITUTION,
+                                                                     project=SOME_PROJECT,
+                                                                     server=SOME_SERVER,
+                                                                     env=None,
+                                                                     validate_only=False,
+                                                                     no_query=False,
+                                                                     subfolders=False,
+                                                                     )
+                                            except ValueError as e:
+                                                # submit_any_ingestion will raise ValueError if its
+                                                # bundle_filename argument is not the name of a
+                                                # metadata bundle file. We did nothing in this mock to
+                                                # create the file SOME_BUNDLE_FILENAME, so we expect something
+                                                # like: "The file '/some-folder/foo.xls' does not exist."
+                                                assert "does not exist" in str(e)
+                                            else:  # pragma: no cover
+                                                raise AssertionError("Expected ValueError did not happen.")
 
     # This tests the normal case with validate_only=False and a successful result.
 
@@ -1186,7 +1314,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -1256,7 +1384,7 @@ def test_submit_any_ingestion_old_protocol():
                                                side_effect=make_mocked_yes_or_no(f"Submit {SOME_BUNDLE_FILENAME}"
                                                                                  f" ({ANOTHER_INGESTION_TYPE})"
                                                                                  f" to {SOME_SERVER}?")):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -1316,7 +1444,7 @@ def test_submit_any_ingestion_old_protocol():
                     print("Data would go here.", file=fp)
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
-                        with mock.patch.object(submission_module, "get_keydict_for_server",
+                        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                return_value=SOME_KEYDICT):
                             with mock.patch("requests.post", mocked_post):
                                 with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -1386,7 +1514,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", unsupported_media_type):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -1439,7 +1567,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mysterious_error):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -1483,7 +1611,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -1538,7 +1666,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -1592,7 +1720,7 @@ def test_submit_any_ingestion_old_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=10)):
@@ -1782,33 +1910,31 @@ def test_submit_any_ingestion_new_protocol():
             with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                 with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                     with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                        with mock.patch.object(submission_module, "get_keydict_for_server",
+                        with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                return_value=SOME_KEYDICT):
                             with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                                 with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                                    with mock.patch.object(submission_module, "get_keydict_for_server",
-                                                           return_value=SOME_KEYDICT):
-                                        with mock.patch("requests.post", mocked_post):
-                                            with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
-                                                try:
-                                                    submit_any_ingestion(SOME_BUNDLE_FILENAME,
-                                                                         ingestion_type='metadata_bundle',
-                                                                         institution=SOME_INSTITUTION,
-                                                                         project=SOME_PROJECT,
-                                                                         server=SOME_SERVER,
-                                                                         env=None,
-                                                                         validate_only=False,
-                                                                         no_query=False,
-                                                                         subfolders=False,)
-                                                except ValueError as e:
-                                                    # submit_any_ingestion will raise ValueError if its
-                                                    # bundle_filename argument is not the name of a
-                                                    # metadata bundle file. We did nothing in this mock to
-                                                    # create the file SOME_BUNDLE_FILENAME, so we expect something
-                                                    # like: "The file '/some-folder/foo.xls' does not exist."
-                                                    assert "does not exist" in str(e)
-                                                else:  # pragma: no cover
-                                                    raise AssertionError("Expected ValueError did not happen.")
+                                    with mock.patch("requests.post", mocked_post):
+                                        with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
+                                            try:
+                                                submit_any_ingestion(SOME_BUNDLE_FILENAME,
+                                                                     ingestion_type='metadata_bundle',
+                                                                     institution=SOME_INSTITUTION,
+                                                                     project=SOME_PROJECT,
+                                                                     server=SOME_SERVER,
+                                                                     env=None,
+                                                                     validate_only=False,
+                                                                     no_query=False,
+                                                                     subfolders=False,)
+                                            except ValueError as e:
+                                                # submit_any_ingestion will raise ValueError if its
+                                                # bundle_filename argument is not the name of a
+                                                # metadata bundle file. We did nothing in this mock to
+                                                # create the file SOME_BUNDLE_FILENAME, so we expect something
+                                                # like: "The file '/some-folder/foo.xls' does not exist."
+                                                assert "does not exist" in str(e)
+                                            else:  # pragma: no cover
+                                                raise AssertionError("Expected ValueError did not happen.")
 
     # This tests the normal case with validate_only=False and a successful result.
 
@@ -1820,7 +1946,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -1891,7 +2017,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", unsupported_media_type):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -1945,7 +2071,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mysterious_error):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -1990,7 +2116,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3,
@@ -2045,7 +2171,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=3)):
@@ -2099,7 +2225,7 @@ def test_submit_any_ingestion_new_protocol():
                 with mock.patch.object(utils_module, "script_catch_errors", script_dont_catch_errors):
                     with mock.patch.object(submission_module, "resolve_server", return_value=SOME_SERVER):
                         with mock.patch.object(submission_module, "yes_or_no", return_value=True):
-                            with mock.patch.object(submission_module, "get_keydict_for_server",
+                            with mock.patch.object(KEY_MANAGER, "get_keydict_for_server",
                                                    return_value=SOME_KEYDICT):
                                 with mock.patch("requests.post", mocked_post):
                                     with mock.patch("requests.get", make_mocked_get(done_after_n_tries=10)):
@@ -2272,8 +2398,10 @@ def test_maybe_show_s3fs_warnings():
             with printed_output() as printed:
                 maybe_show_s3fs_warnings(some_file)
                 assert printed.lines == [
-                    "An error occurred while trying to ask S3 about Bucket='some-bucket',"
-                    " Key='some-key': Mock File Not Found"
+                    "An error occurred while trying to ask S3"
+                    " about Bucket='some-bucket',"
+                    " Key='some-key': Mock File Not Found:"
+                    " some-bucket/some-key. Existing files: []"
                 ]
 
             some_bucket = 'some-bucket'
@@ -2318,3 +2446,153 @@ def test_bash_enumeration():
     assert bash_enumeration('foo\nbar\nbaz') == ['foo', 'bar', 'baz']
     assert bash_enumeration('foo, bar,baz') == ['foo', 'bar', 'baz']
     assert bash_enumeration('foo,\n  bar   ,,,baz, \n') == ['foo', 'bar', 'baz']
+
+
+def test_running_on_windows_native():
+    for pair in [("nt", True), ("posix", False)]:
+        os_name, is_windows = pair
+        with mock.patch.object(os, "name", os_name):
+            assert running_on_windows_native() is is_windows
+
+
+@pytest.mark.parametrize(
+    "directory,file_name,recursive,glob_results,expected_file_path,expected_msg",
+    [
+        ("foo", "bar", False, [], "foo/bar", False),
+        ("foo", "bar", True, [], "foo/bar", False),
+        ("foo", "bar", False, ["foo/bar"], "foo/bar", False),
+        ("foo", "bar", False, ["foo/bar", "fu/foo/bar"], None, True),
+    ]
+)
+def test_search_for_file(
+    directory, file_name, recursive, glob_results, expected_file_path, expected_msg
+):
+    """Test output file path +/- error message dependent on file search
+    via glob.
+    """
+    with mock.patch.object(
+        submission_module.glob, "glob", return_value=glob_results
+    ) as mocked_glob:
+        file_path_found, error_msg = search_for_file(directory, file_name, recursive)
+        mocked_glob.assert_called_once_with(
+            directory + "/" + file_name, recursive=recursive
+        )
+        assert file_path_found == expected_file_path
+        if expected_msg:
+            assert error_msg.startswith(
+                f"No upload attempted for file {file_name}"
+            )
+        else:
+            assert not error_msg, "Error message found when not expected"
+
+
+@pytest.mark.parametrize(
+    "no_query,cgap_selective_uploads,yes_or_no_result,error_raised,expected_result",
+    [
+        (False, True, False, None, None),
+        (False, False, False, None, None),
+        (False, True, True, None, "something"),
+        (False, True, True, True, None),
+        (True, True, False, None, "something"),
+        (True, True, False, True, None),
+    ]
+)
+def test_wrap_upload_function(
+    no_query, cgap_selective_uploads, yes_or_no_result, error_raised, expected_result
+):
+    """Test UploadMessageWrapper.wrap_upload_function creates
+    appropriate messages on given upload function.
+
+    Ensure wrapped function is indeed wrapped and returns expected
+    output when called.
+    """
+    with shown_output() as shown:
+        with mock.patch.object(
+            submission_module, "yes_or_no", return_value=yes_or_no_result
+        ) as mocked_yes_or_no:
+            with mock.patch.object(
+                submission_module,
+                "CGAP_SELECTIVE_UPLOADS",
+                cgap_selective_uploads,
+            ):
+                side_effect = None
+                if error_raised:
+                    side_effect = RuntimeError("Error occurred")
+                simple_function = mock.MagicMock(
+                    side_effect=side_effect, return_value=expected_result
+                )
+
+                uuid = "some_uuid"
+                file_name = "foo/bar"
+                input_arg = "foo"
+                function_wrapper = UploadMessageWrapper(uuid, no_query=no_query)
+                wrapped_function = function_wrapper.wrap_upload_function(
+                    simple_function, file_name
+                )
+                result = wrapped_function(input_arg, error_raised=error_raised)
+
+                expected_lines = []
+                if not no_query and cgap_selective_uploads and not yes_or_no_result:
+                    mocked_yes_or_no.assert_called_once()
+                    expected_lines.append("OK, not uploading it.")
+                    simple_function.assert_not_called()
+                else:
+                    expected_lines.append(f"Uploading {file_name} to item {uuid} ...")
+                    simple_function.assert_called_once_with(
+                        input_arg, error_raised=error_raised
+                    )
+                    if error_raised:
+                        expected_lines.append(f"RuntimeError: Error occurred")
+                    else:
+                        expected_lines.append(
+                            f"Upload of {file_name} to item {uuid} was successful."
+                        )
+                assert shown.lines == expected_lines
+                assert result == expected_result
+
+
+@pytest.mark.parametrize(
+    "credentials,files_found,expected_file_search_calls,expected_uploader_calls",
+    [
+        ([], [], 0, 0),
+        ([{"filename": "foo"}], [], 0, 0),
+        ([{"upload_credentials": {"key": "value"}}], [], 0, 0),
+        (SOME_EXTRA_FILE_CREDENTIALS, [], 2, 0),
+        (SOME_EXTRA_FILE_CREDENTIALS, [SOME_FILENAME], 2, 1),
+        (SOME_EXTRA_FILE_CREDENTIALS, [SOME_FILENAME, ANOTHER_FILE_NAME], 2, 2),
+    ]
+)
+def test_upload_extra_files(
+    credentials, files_found, expected_file_search_calls, expected_uploader_calls
+):
+    """Test extra files credentials utilized to search for and then
+    upload files.
+    """
+    folder = SOME_USER_HOMEDIR
+    recursive = True
+    auth = SOME_AUTH
+
+    def mocked_file_search(folder, extra_file_name, **kwargs):
+        ignored(kwargs)
+        if extra_file_name in files_found:
+            return os.path.join(folder, extra_file_name), None
+        else:
+            return None, "error"
+
+    with mock.patch.object(
+        submission_module, "search_for_file", side_effect=mocked_file_search
+    ) as mocked_search_for_file:
+        with mock.patch.object(
+            submission_module, "execute_prearranged_upload"
+        ) as mocked_execute_upload:
+            uploader_wrapper = UploadMessageWrapper(SOME_UUID)
+            upload_extra_files(
+                credentials,
+                uploader_wrapper,
+                folder,
+                auth,
+                recursive=recursive,
+            )
+            assert len(mocked_search_for_file.call_args_list) == expected_file_search_calls
+            assert len(mocked_execute_upload.call_args_list) == expected_uploader_calls
+
