@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "submit_cgap"
-version = "4.1.0"
+version = "4.1.0.2b3"
 description = "Support for uploading file submissions to the Clinical Genomics Analysis Platform (CGAP)."
 authors = ["4DN-DCIC Team <support@4dnucleome.org>"]
 license = "MIT"
@@ -64,7 +64,7 @@ coverage = ">=6.5.0"
 # coveralls = ">=3.3.1"
 
 # Linting generally
-flake8 = ">=3.9.2"
+flake8 = ">=4.0.1"
 
 # pygments is used by PyCharm
 pygments = ">=2.14.0"
@@ -101,6 +101,5 @@ exclude_lines = [
 ]
 
 [build-system]
-
-requires = ["poetry_core>=1.0.0"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
