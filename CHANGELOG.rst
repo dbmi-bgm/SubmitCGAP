@@ -7,11 +7,56 @@ Change Log
 ----------
 
 
-3.1.0
+4.2.0
 =====
 
 * Better error diagnostics for S3FS-mounted files that are glaciated
   if the ``CGAP_S3FS_UPLOAD_BUCKETS`` and ``CGAP_S3FS_UPLOAD_DIR`` environment variables are set.
+
+
+4.1.0
+=====
+
+* Support for a check-submission command.
+* Very basic support for SMaHT.
+  * Commands can now take ``--app smaht`` (which will use ``~/.smaht-keys.json``)
+  * submit-ontology takes ``--consortium`` and ``submission_center`` arguments.
+  * Some other functionality may still be missing. Send email if you're missing something you need.
+
+
+4.0.0
+=====
+
+* Add command submit-ontology with new SubmissionProtocol.S3 support that allows upload first via S3
+  when initiating a connection. This is not an incompatible change, but it is a very major feature addition,
+  so I'm going to bump the major version.
+
+* In ``base.py``:
+
+  *  New class ``GenericKeyManager`` to manage possibility of either Fourfront or CGAP keys files
+     (``~/.fourfront-keys.json`` vs ``~/.cgap-keys.json``)
+
+* Appropriate unit test coverage.
+
+* Use poetry 1.3.2 for building. Update other dependencies.
+
+* -------
+
+* Verify ontology file first before processing in submit-ontology.
+
+* Added --verbose and --debug options to submit-xyz and show-upload-info.
+
+* Fixed show-upload-info to work with new --app option etc.
+
+* Updated show-upload-info to show more info on the given ingestion uuid.
+
+
+3.1.0
+=====
+
+`PR 34: Increase submission timeout <https://github.com/dbmi-bgm/SubmitCGAP/pull/34>`_
+
+* Increase submission timeout from 2 to 10 minutes
 
 
 3.0.0

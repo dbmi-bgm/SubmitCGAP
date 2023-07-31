@@ -5,7 +5,7 @@ clear-poetry-cache:  # clear poetry/pypi cache. for user to do explicitly, never
 	poetry cache clear pypi --all
 
 configure:  # does any pre-requisite installs
-	pip install poetry
+	pip install poetry==1.3.2
 
 lint:
 	flake8 submit_cgap
@@ -27,10 +27,12 @@ tag-and-push:  # tags the branch and pushes it
 	@scripts/tag-and-push
 
 publish:
-	scripts/publish
+	# New Python based publish script in dcicutils (2023-04-25).
+	poetry run publish-to-pypi
 
 publish-for-ga:
-	scripts/publish --noconfirm
+	# New Python based publish script in dcicutils (2023-04-25).
+	poetry run publish-to-pypi --noconfirm
 
 help:
 	@make info
