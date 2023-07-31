@@ -6,20 +6,156 @@ SubmitCGAP
 Change Log
 ----------
 
-2.0.0
-=====
 
-* Removed ``auth.py``, and in ``base.py`` removes the ``KeyManager`` class and the ``UsingCGAPKeysFile`` decorator.
-* Changed other existing functionality to use new ``dcicutils.creds_utils`` in place of removed functionality.
-  (See `SubmitCGAP PR #24 <https://github.com/dbmi-bgm/SubmitCGAP/pull/24>`_ for additional detail.)
-* Added a ``make`` target named ``clear-poetry-cache`` to help with certain ``poetry`` solver problems that result
-  from improper caching.
-
-1.5.0
+4.2.0
 =====
 
 * Better error diagnostics for S3FS-mounted files that are glaciated
   if the ``CGAP_S3FS_UPLOAD_BUCKETS`` and ``CGAP_S3FS_UPLOAD_DIR`` environment variables are set.
+
+
+4.1.0
+=====
+
+* Support for a check-submission command.
+* Very basic support for SMaHT.
+  * Commands can now take ``--app smaht`` (which will use ``~/.smaht-keys.json``)
+  * submit-ontology takes ``--consortium`` and ``submission_center`` arguments.
+  * Some other functionality may still be missing. Send email if you're missing something you need.
+
+
+4.0.0
+=====
+
+* Add command submit-ontology with new SubmissionProtocol.S3 support that allows upload first via S3
+  when initiating a connection. This is not an incompatible change, but it is a very major feature addition,
+  so I'm going to bump the major version.
+
+* In ``base.py``:
+
+  *  New class ``GenericKeyManager`` to manage possibility of either Fourfront or CGAP keys files
+     (``~/.fourfront-keys.json`` vs ``~/.cgap-keys.json``)
+
+* Appropriate unit test coverage.
+
+* Use poetry 1.3.2 for building. Update other dependencies.
+
+* -------
+
+* Verify ontology file first before processing in submit-ontology.
+
+* Added --verbose and --debug options to submit-xyz and show-upload-info.
+
+* Fixed show-upload-info to work with new --app option etc.
+
+* Updated show-upload-info to show more info on the given ingestion uuid.
+
+
+3.1.0
+=====
+
+`PR 34: Increase submission timeout <https://github.com/dbmi-bgm/SubmitCGAP/pull/34>`_
+
+* Increase submission timeout from 2 to 10 minutes
+
+
+3.0.0
+=====
+
+* Updates to use creds_utils (C4-779):
+
+  * Removed ``auth.py``, and in ``base.py`` removes:
+
+    * class ``KeyManager`` class
+
+    * decorator``UsingCGAPKeysFile``
+
+  * Changed other existing functionality to use new ``dcicutils.creds_utils`` in place of
+    removed functionality. (See
+    `SubmitCGAP PR #24 <https://github.com/dbmi-bgm/SubmitCGAP/pull/24>`_
+    for additional detail.)
+
+  * Added a ``make`` target named ``clear-poetry-cache``
+    to help with certain ``poetry`` solver problems that result from improper caching.
+
+* Upgrades to dcicutils 6.0 (C4-896):
+
+  * Avoid use of ``full_cgap_env_name``. Just don't adjust the name.
+
+  * Avoid use of ``get_real_env_url`` by changing ``submission.resolve_server``
+    to not use heuristics based on it.
+
+  **NOTE:** These changes are slightly incompatible, but not materially so.
+  There aren't programmatic dependencies on this library, unless maybe scripts.
+  It will be necessary after this change to use environment names and hostnames
+  that are properly declard in ``~/.cgap-keys.json``.
+
+
+2.0.1
+=====
+
+* Update documentation with some small fixes
+* Add new basic setup documentation
+
+
+2.0.0
+=====
+
+* Drop support for Python 3.6 (C4-898)
+
+* Use ``ignored``, ``local_attrs``, and ``override_environ``
+  from ``dcicutils.misc_utils`` rather than ``dcicutils.qa_utils``. (C4-895)
+
+* Add debugging instrumentation for failed access to credentials.
+
+
+1.5.0
+=====
+
+* Support upload of extra files
+* Update test submission FASTQ files to match update submission requirements
+
+
+1.4.2
+=====
+
+* Further adustments to repair problems created by 1.4.1 (C4-818).
+
+
+1.4.1
+=====
+
+* Fix SubmitCGAP file upload to work correctly under Microsoft/Windows 10 (C4-816).
+
+
+2.0.0
+=====
+
+* Drop support for Python 3.6 (C4-898)
+
+* Use ``ignored``, ``local_attrs``, and ``override_environ``
+  from ``dcicutils.misc_utils`` rather than ``dcicutils.qa_utils``. (C4-895)
+
+* Add debugging instrumentation for failed access to credentials.
+
+
+1.5.0
+=====
+
+* Support upload of extra files
+* Update test submission FASTQ files to match update submission requirements
+
+
+1.4.2
+=====
+
+* Further adustments to repair problems created by 1.4.1 (C4-818).
+
+
+1.4.1
+=====
+
+* Fix SubmitCGAP file upload to work correctly under Microsoft/Windows 10 (C4-816).
 
 
 1.4.0
