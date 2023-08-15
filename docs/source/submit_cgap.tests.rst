@@ -1,17 +1,6 @@
 submit\_cgap.tests package
 ==========================
 
-Submodules
-----------
-
-submit\_cgap.tests.test\_auth module
-------------------------------------
-
-.. automodule:: submit_cgap.tests.test_auth
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 submit\_cgap.tests.test\_base module
 ------------------------------------
 
@@ -72,14 +61,6 @@ submit\_cgap.tests.test\_utils module
 -------------------------------------
 
 .. automodule:: submit_cgap.tests.test_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: submit_cgap.tests
    :members:
    :undoc-members:
    :show-inheritance:

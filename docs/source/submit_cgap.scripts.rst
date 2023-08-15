@@ -1,10 +1,7 @@
 submit\_cgap.scripts package
 ============================
 
-Submodules
-----------
-
-submit\_cgap.scripts.make\_sample\_fastq\_file module
+Submit\_cgap.scripts.make\_sample\_fastq\_file module
 -----------------------------------------------------
 
 .. automodule:: submit_cgap.scripts.make_sample_fastq_file
@@ -32,14 +29,6 @@ submit\_cgap.scripts.upload\_item\_data module
 ----------------------------------------------
 
 .. automodule:: submit_cgap.scripts.upload_item_data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: submit_cgap.scripts
    :members:
    :undoc-members:
    :show-inheritance:
