@@ -7,6 +7,12 @@ Change Log
 ----------
 
 
+4.1.1
+=====
+
+* Various documentation changes ported back from the ``submitr`` fork.
+
+
 4.1.0
 =====
 

@@ -1,25 +1,8 @@
+Implementation of submit\_cgap
+==============================
+
 submit\_cgap package
-====================
-
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   submit_cgap.scripts
-   submit_cgap.tests
-
-Submodules
-----------
-
-submit\_cgap.auth module
-------------------------
-
-.. automodule:: submit_cgap.auth
-   :members:
-   :undoc-members:
-   :show-inheritance:
+--------------------
 
 submit\_cgap.base module
 ------------------------
@@ -53,10 +36,12 @@ submit\_cgap.utils module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
+submit\_cgap subpackages
+------------------------
 
-.. automodule:: submit_cgap
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 4
+
+   submit_cgap.scripts
+   submit_cgap.tests
+
