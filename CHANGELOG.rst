@@ -25,7 +25,6 @@ Change Log
   * Don't show package content ``submit_cgap.tests`` or ``submit_cgap.scripts`` (which would show info from
     ``__init__.py``, which we don't do). This avoids some useless/confusing section headings.
 
-
 * Add some additional ``Makefile`` recipes, most importantly ``make preview-locally`` to preview what Sphinx
   will do on ReadTheDocs.
 
