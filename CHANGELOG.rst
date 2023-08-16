@@ -28,6 +28,14 @@ Change Log
 * Add some additional ``Makefile`` recipes, most importantly ``make preview-locally`` to preview what Sphinx
   will do on ReadTheDocs.
 
+* Backport some improvements to GithubActions (GA) workflows that were debugged for ``submitr``.
+  * Use ``make build`` rather than explicit ``poetry`` initialization (to avoid extra dependency on version).
+  * Use ``ref=`` instead of ``branches=`` when submitting a doc build job.
+  * Trigger auto-build of doc on any non-beta checkin.
+    (For betas, use the new ``make preview-locally`` since
+     the recipe for building will just build from master and
+     doesn't parameterize the branch.)
+
 
 4.1.0
 =====
