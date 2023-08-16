@@ -21,6 +21,10 @@ Change Log
       to feel they need to understand this section to use the tool.
   * Put information about ``rclone`` at the end, and make it clear that it's an alternative to using this tool
     rather than the main documentation of how to use this tool.
+  * Put subpackage information at the end of package list, not at the beginning.
+  * Don't show package content ``submit_cgap.tests`` or ``submit_cgap.scripts`` (which would show info from
+    ``__init__.py``, which we don't do). This avoids some useless/confusing section headings.
+
 
 * Add some additional ``Makefile`` recipes, most importantly ``make preview-locally`` to preview what Sphinx
   will do on ReadTheDocs.
