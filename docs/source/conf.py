@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Submit-CGAP'
+project = 'SubmitCGAP'
 copyright = '2020-2023 President and Fellows of Harvard College'
 author = 'Harvard Medical School / DBMI / CGAP Team'
 master_doc = 'index'

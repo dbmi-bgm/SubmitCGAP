@@ -10,7 +10,20 @@ Change Log
 4.1.1
 =====
 
-* Various documentation changes ported back from the ``submitr`` fork.
+* Various documentation changes, mostly ported back from the ``submitr`` fork:
+  * Change Submit-CGAP throughout to SubmitCGAP for internal branding consistency.
+  * Small wording changes for clarity, especially in Overview.
+  * Fix some ``.rtf`` syntax errors (especially uses of single-backquote where double-backquote required).
+  * Clearer section names.
+    * "Installing Prerequisites" (instead of "Basic Setup") for clarity about what content to expect.
+    * "Using SubmitCGAP" (instead of "Getting Started") again for clarity.
+    * "Implementation of submit_cgap package" instead of "submit_cgap package" so that the user is less likely
+      to feel they need to understand this section to use the tool.
+  * Put information about ``rclone`` at the end, and make it clear that it's an alternative to using this tool
+    rather than the main documentation of how to use this tool.
+
+* Add some additional ``Makefile`` recipes, most importantly ``make preview-locally`` to preview what Sphinx
+  will do on ReadTheDocs.
 
 
 4.1.0

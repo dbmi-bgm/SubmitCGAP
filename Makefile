@@ -1,5 +1,12 @@
 clean:
+	make clean-python
+	make clean-sphinx-build
+
+clean-python:
 	rm -rf *.egg-info
+
+clean-sphinx-build:  # clean html output cache used for ReadTheDocs previews
+	rm -rf docs/html/
 
 clear-poetry-cache:  # clear poetry/pypi cache. for user to do explicitly, never automatic
 	poetry cache clear pypi --all
@@ -26,16 +33,18 @@ update:  # updates dependencies
 tag-and-push:  # tags the branch and pushes it
 	@scripts/tag-and-push
 
-preview-locally:
+preview-locally:  # build a ReadTheDocs preview from docs/source into docs/html
 	sphinx-build -b html docs/source docs/html
 	open docs/html/index.html
 
-publish:
-	# New Python based publish script in dcicutils (2023-04-25).
+preview-locally-clean:  # clean build a ReadTheDocs preview from docs/source into docs/html
+	make clean-sphinx-build
+	make preview-locally
+
+publish:  # publish using publish script from dcicutils.scripts
 	poetry run publish-to-pypi
 
-publish-for-ga:
-	# New Python based publish script in dcicutils (2023-04-25).
+publish-for-ga:  # publish using publish script from dcicutils.scripts
 	poetry run publish-to-pypi --noconfirm
 
 help:
