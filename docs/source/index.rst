@@ -36,14 +36,14 @@ What To Do Next
 ===============
 
 Advanced users who have already installed Python
-can proceed to instructions for **Installing submitr**.
+can proceed to instructions for **Installing SubmitCGAP**.
 
 Less experienced users should start with instructions
 for **Installing Prerequisites**,
 which will introduce some basics for working with the terminal
 and installing the dependencies to run this package.
 
-Although at some point **submitr** might offer the ability to
+Although at some point **SubmitCGAPr** might offer the ability to
 use **rclone** invisibly, for now it uses **awscli** only.
 But we do now experimentally offer some instructions for
 **Using rclone instead** at the end of this documentation
