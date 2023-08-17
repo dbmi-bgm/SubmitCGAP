@@ -52,9 +52,9 @@ However, if you want to deactivate an active environment, just do::
 Installing SubmitCGAP in a Virtual Environment
 ==============================================
 
-**End Users:** Submit-CGAP can be installed with a simple pip install::
+**End Users:** SubmitCGAP can be installed with a simple pip install::
 
-   pip install submit-cgap
+   pip install SubmitCGAP
 
 **Developers:** Once you have created a virtual environment, or have decided to just let Poetry handle that,
 install with poetry::

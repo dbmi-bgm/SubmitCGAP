@@ -1,6 +1,6 @@
-===============
-Getting Started
-===============
+================
+Using SubmitCGAP
+================
 
 Once you have finished installing this library into your virtual environment,
 you should have access to the ``submit-metadata-bundle`` and the ``submit-genelist``
@@ -12,7 +12,8 @@ Formatting Files for Submission
 ===============================
 
 For details on what file formats are accepted and how the information should be structured,
-see our submission help pages at `the main CGAP server <https://cgap-training.hms.harvard.edu/help/submission>`_
+see our submission help pages at
+`the main CGAP server <https://cgap-training.hms.harvard.edu/help/submission>`_
 or at <your-cgap-server>/help/submission .
 
 Metadata Bundles

@@ -7,6 +7,36 @@ Change Log
 ----------
 
 
+4.1.1
+=====
+
+* Various documentation changes, mostly ported back from the ``submitr`` fork:
+  * Change Submit-CGAP throughout to SubmitCGAP for internal branding consistency.
+  * Small wording changes for clarity, especially in Overview.
+  * Fix some ``.rtf`` syntax errors (especially uses of single-backquote where double-backquote required).
+  * Clearer section names.
+    * "Installing Prerequisites" (instead of "Basic Setup") for clarity about what content to expect.
+    * "Using SubmitCGAP" (instead of "Getting Started") again for clarity.
+    * "Implementation of submit_cgap package" instead of "submit_cgap package" so that the user is less likely
+      to feel they need to understand this section to use the tool.
+  * Put information about ``rclone`` at the end, and make it clear that it's an alternative to using this tool
+    rather than the main documentation of how to use this tool.
+  * Put subpackage information at the end of package list, not at the beginning.
+  * Don't show package content ``submit_cgap.tests`` or ``submit_cgap.scripts`` (which would show info from
+    ``__init__.py``, which we don't do). This avoids some useless/confusing section headings.
+
+* Add some additional ``Makefile`` recipes, most importantly ``make preview-locally`` to preview what Sphinx
+  will do on ReadTheDocs.
+
+* Backport some improvements to GithubActions (GA) workflows that were debugged for ``submitr``.
+  * Use ``make build`` rather than explicit ``poetry`` initialization (to avoid extra dependency on version).
+  * Use ``ref=`` instead of ``branches=`` when submitting a doc build job.
+  * Trigger auto-build of doc on any non-beta checkin.
+    (For betas, use the new ``make preview-locally`` since
+     the recipe for building will just build from master and
+     doesn't parameterize the branch.)
+
+
 4.1.0
 =====
 

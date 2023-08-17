@@ -1,11 +1,18 @@
 clean:
+	make clean-python
+	make clean-sphinx-build
+
+clean-python:
 	rm -rf *.egg-info
+
+clean-sphinx-build:  # clean html output cache used for ReadTheDocs previews
+	rm -rf docs/html/
 
 clear-poetry-cache:  # clear poetry/pypi cache. for user to do explicitly, never automatic
 	poetry cache clear pypi --all
 
 configure:  # does any pre-requisite installs
-	pip install poetry==1.3.2
+	pip install poetry==1.4.2
 
 lint:
 	flake8 submit_cgap
@@ -26,12 +33,18 @@ update:  # updates dependencies
 tag-and-push:  # tags the branch and pushes it
 	@scripts/tag-and-push
 
-publish:
-	# New Python based publish script in dcicutils (2023-04-25).
+preview-locally:  # build a ReadTheDocs preview from docs/source into docs/html
+	sphinx-build -b html docs/source docs/html
+	open docs/html/index.html
+
+preview-locally-clean:  # clean build a ReadTheDocs preview from docs/source into docs/html
+	make clean-sphinx-build
+	make preview-locally
+
+publish:  # publish using publish script from dcicutils.scripts
 	poetry run publish-to-pypi
 
-publish-for-ga:
-	# New Python based publish script in dcicutils (2023-04-25).
+publish-for-ga:  # publish using publish script from dcicutils.scripts
 	poetry run publish-to-pypi --noconfirm
 
 help:
@@ -42,6 +55,7 @@ info:
 	   $(info - Use 'make configure' to install poetry, though 'make build' will do it automatically.)
 	   $(info - Use 'make lint' to check style with flake8.)
 	   $(info - Use 'make build' to install dependencies using poetry.)
+	   $(info - Use 'make preview-locally' to build and a local doc tree and open it for preview.)
 	   $(info - Use 'make publish' to publish this library, but only if auto-publishing has failed.)
 	   $(info - Use 'make retest' to run failing tests from the previous test run.)
 	   $(info - Use 'make test' to run tests with the normal options we use for CI/CD like GA.)

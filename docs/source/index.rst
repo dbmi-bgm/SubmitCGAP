@@ -1,17 +1,18 @@
-===========
+========
 Overview
-===========
+========
 
-File submission for CGAP
-------------------------
+------------------------------------------
+SubmitCGAP: remote file submitter for CGAP
+------------------------------------------
 
-.. image:: https://travis-ci.org/dbmi-bgm/SubmitCGAP.svg
-   :target: https://travis-ci.org/dbmi-bgm/SubmitCGAP
+.. image:: https://github.com/dbmi-bgm/SubmitCGAP/actions/workflows/main.yml/badge.svg
+   :target: https://github.com/dbmi-bgm/SubmitCGAP/actions
    :alt: Build Status
 
 .. image:: https://coveralls.io/repos/github/dbmi-bgm/SubmitCGAP/badge.svg
    :target: https://coveralls.io/github/dbmi-bgm/SubmitCGAP
-   :alt: Coverage
+   :alt: Coverage Percentage
 
 .. image:: https://readthedocs.org/projects/submitcgap/badge/?version=latest
    :target: https://submitcgap.readthedocs.io/en/latest/?badge=latest
@@ -34,17 +35,26 @@ System Requirements
 What To Do Next
 ===============
 
-Advanced users who have already installed Python can proceed to the installation instructions.
-Less experienced users should start with the basic setup instructions, which will introduce some
-basics for working with the terminal and installing the dependencies to run this package.
+Advanced users who have already installed Python
+can proceed to instructions for **Installing SubmitCGAP**.
 
+Less experienced users should start with instructions
+for **Installing Prerequisites**,
+which will introduce some basics for working with the terminal
+and installing the dependencies to run this package.
+
+Although at some point **SubmitCGAPr** might offer the ability to
+use **rclone** invisibly, for now it uses **awscli** only.
+But we do now experimentally offer some instructions for
+**Using rclone instead** at the end of this documentation
+in case that's an option you want to pursue.
 
 .. toctree::
   :maxdepth: 4
 
   self
-  rclone
-  basic_setup
+  installing_prerequisites
   installation
-  getting_started
+  usage
   submit_cgap
+  rclone_instead
