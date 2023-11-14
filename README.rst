@@ -60,4 +60,4 @@ Getting Started
 Once you have finished installing this library into your virtual environment,
 you should have access to the ``submit-metadata-bundle`` and the ``submit-genelist``
 commands. For more information about how to format files for submission and how to
-use these commands, see `Getting Started <https://submitcgap.readthedocs.io/en/latest/getting_started.html>`_.
+use these commands, see `Getting Started <https://submitcgap.readthedocs.io/en/latest/usage.html>`_.
