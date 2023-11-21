@@ -7,6 +7,12 @@ Change Log
 ----------
 
 
+4.1.2
+=====
+
+* Fix ``pip install`` command in installation docs
+
+
 4.1.1
 =====
 
