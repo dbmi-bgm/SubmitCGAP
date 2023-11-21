@@ -54,7 +54,7 @@ Installing SubmitCGAP in a Virtual Environment
 
 **End Users:** SubmitCGAP can be installed with a simple pip install::
 
-   pip install SubmitCGAP
+   pip install submit-cgap
 
 **Developers:** Once you have created a virtual environment, or have decided to just let Poetry handle that,
 install with poetry::
