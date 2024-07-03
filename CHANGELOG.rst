@@ -7,6 +7,20 @@ Change Log
 ----------
 
 
+4.2.0
+=====
+
+* Support for Python 3.12.
+* Dropped support for Python 3.7 (minimum is 3.8.1).
+* TODO: Note that one of the tests (marked with TODO/2024-07-03) within each of the below test modules never worked
+  properly. While upgrading to Python 3.12 found that the correct way to do it is to invoke assert_called_with rather
+  than doing an assert on called_with; the latter merely checks that the called_with returns a non-falsey value which
+  is not really checking anything; and making this change breaks this test, meaning it never worked right.
+  - submit_cgap/tests/test_show_upload_info.py
+  - submit_cgap/tests/test_submit_metadata_bundle.py
+  - submit_cgap/tests/test_submit_ontology.py
+
+
 4.1.2
 =====
 

@@ -30,7 +30,7 @@ def test_resume_uploads_script(keyfile):
                             raise AssertionError("resume_uploads_main should not exit normally.")  # pragma: no cover
                         assert mock_resume_uploads.call_count == (1 if expect_called else 0)
                         if expect_called:
-                            assert mock_resume_uploads.called_with(**expect_call_args)
+                            mock_resume_uploads.assert_called_with(**expect_call_args)
                         assert output == []
 
     test_it(args_in=[], expect_exit_code=2, expect_called=False)  # Missing args
