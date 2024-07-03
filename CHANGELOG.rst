@@ -7,6 +7,13 @@ Change Log
 ----------
 
 
+4.2.0
+=====
+
+* Support for Python 3.12.
+* Dropped support for Python 3.7 (minimum is 3.8.1).
+
+
 4.1.2
 =====
 
