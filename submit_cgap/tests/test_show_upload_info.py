@@ -27,7 +27,7 @@ def test_show_upload_info_script(keyfile):
                         assert mock_show_upload_info.call_count == (1 if expect_called else 0)
                         if expect_called:
                             # TODO/2024-07-03: Incorrect test. Upgrade to Python 3.12 found that the correct way to do
-                            # this is to invoke assert_called_with rather than doing an assert on called_with; the latter
+                            # this is to use assert_called_with rather than doing an assert on called_with; the latter
                             # merely checks that the called_with returns a non-falsey value which is not really checking
                             # anything; and making this change breaks this test, meaning it never worked right.
                             # assert mock_show_upload_info.called_with(**expect_call_args) <<< old
