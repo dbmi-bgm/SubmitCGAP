@@ -33,7 +33,7 @@ def test_upload_item_data_script(keyfile, mocked_s3_encrypt_key_id):
                                     "upload_item_data_main should not exit normally.")
                             assert mock_upload_item_data.call_count == (1 if expect_called else 0)
                             if expect_called:
-                                assert mock_upload_item_data.called_with(**expect_call_args)
+                                mock_upload_item_data.assert_called_with(**expect_call_args)
                             assert output == []
 
     test_it(args_in=[], expect_exit_code=2, expect_called=False)  # Missing args
